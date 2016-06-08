@@ -1,12 +1,14 @@
 use std::ops;
 use std::convert;
 
+// Converts an array of u8 into a given type.
+// Works great with unsigned integer types like 'usize' or 'u8'
 pub fn from_u8array<T>(arr:&[u8]) -> T
-where T: ops::Shl<T> + ops::AddAssign<T> + convert::From<u8> + Copy {
+where T: ops::ShlAssign<T> + ops::BitOrAssign<T> + convert::From<u8> + Copy {
 	let mut ret: T = T::from(0u8);
 	for val in arr {
-		ret << T::from(8u8);
-		ret += T::from(*val);
+		ret <<= T::from(8u8);
+		ret |= T::from(*val);
 	}
 
 	return ret;
