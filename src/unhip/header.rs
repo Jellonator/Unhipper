@@ -1,13 +1,14 @@
 use std::fmt;
 use super::super::util;
+use super::super::ustr::Ustr;
 
 pub struct HeaderDate {
-	period: String,
-	day_name: String,
-	month: String,
-	day_num: String,
-	time: String,
-	year: String
+	pub period:   Ustr,
+	pub day_name: Ustr,
+	pub month:    Ustr,
+	pub day_num:  Ustr,
+	pub time:     Ustr,
+	pub year:     Ustr
 }
 
 impl fmt::Display for HeaderDate {
@@ -18,13 +19,13 @@ impl fmt::Display for HeaderDate {
 }
 
 pub struct HeaderData {
-	version: u32,
-	flags: Vec<u8>,
-	date: HeaderDate,
-	platform: String,
-	langauge: String,
-	format: String,
-	game_name: String
+	pub version: u32,
+	pub flags: Vec<u8>,
+	pub date: HeaderDate,
+	pub platform:  Ustr,
+	pub langauge:  Ustr,
+	pub format:    Ustr,
+	pub game_name: Ustr
 }
 
 impl fmt::Display for HeaderData {
@@ -45,12 +46,12 @@ fn parse_version(data:&[u8]) -> u32 {
 
 fn parse_date(data:&[u8]) -> HeaderDate {
 	HeaderDate {
-		period:   String::from_utf8_lossy(&data[0..4]).to_string(),
-		day_name: String::from_utf8_lossy(&data[4..8]).to_string(),
-		month:    String::from_utf8_lossy(&data[8..12]).to_string(),
-		day_num:  String::from_utf8_lossy(&data[12..15]).to_string(),
-		time:     String::from_utf8_lossy(&data[15..24]).to_string(),
-		year:     String::from_utf8_lossy(&data[24..28]).to_string()
+		period:   Ustr::from_u8(&data[0..4]),
+		day_name: Ustr::from_u8(&data[4..8]),
+		month:    Ustr::from_u8(&data[8..12]),
+		day_num:  Ustr::from_u8(&data[12..15]),
+		time:     Ustr::from_u8(&data[15..24]),
+		year:     Ustr::from_u8(&data[24..28])
 	}
 }
 
@@ -111,17 +112,21 @@ pub fn parse_header(data: &[u8]) -> HeaderData {
 		}
 		pval = val;
 	}
+	// Platform information, can be GC, BX, or PS
 	let platform = platform_data[0];
+	// Language, for some reason this is actually 'Gamecube'
 	let langauge = platform_data[1];
+	// Format, probably NTSC
 	let format = platform_data[2];
+	// Actual name of game
 	let game_name = platform_data[3];
 	HeaderData {
 		version: version,
 		flags: flags,
 		date: date,
-		platform:  String::from_utf8_lossy(platform ).to_string(),
-		langauge:  String::from_utf8_lossy(langauge ).to_string(),
-		format:    String::from_utf8_lossy(format   ).to_string(),
-		game_name: String::from_utf8_lossy(game_name).to_string()
+		platform:  Ustr::from_u8(platform ),
+		langauge:  Ustr::from_u8(langauge ),
+		format:    Ustr::from_u8(format   ),
+		game_name: Ustr::from_u8(game_name)
 	}
 }

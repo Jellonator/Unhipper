@@ -1,5 +1,6 @@
 mod unhip;
 mod util;
+mod ustr;
 
 pub fn nonpanic_exit(msg:&str) -> ! {
 	println!("{}", msg);

@@ -7,8 +7,10 @@ mod layer;
 use std::fs::File;
 use std::io::Read;
 use super::util;
+use super::ustr::Ustr;
 
 pub fn parse_data(data: &[u8]) {
+	let originaldata = &data;
 	if &data[0..4] != "HIPA".as_bytes() {
 		panic!("Not a valid HIP file!");
 	}
@@ -25,14 +27,17 @@ pub fn parse_data(data: &[u8]) {
 	}
 
 	let directory_len = util::from_u8array::<usize>(&data[4..8]);
-	let actual_file_data = &data[8+directory_len..];
 
 	let directory_data = directory::parse_directory(&data[8..8+directory_len]);
 
-	println!("{:?}", String::from_utf8_lossy(&actual_file_data[0..8]));
-	println!("{:?}", &actual_file_data[0..8]);
-	println!("dir len: {}", directory_len);
-	println!("data len: {}", actual_file_data.len());
+	for file in directory_data.files {
+		if file.filetype.data == "TEXT".as_bytes() {
+			println!("{}: {}",
+				file.filename,
+				Ustr::from_u8(file.get_data(&originaldata))
+			)
+		}
+	}
 }
 
 pub fn unhip(filename:&str) {

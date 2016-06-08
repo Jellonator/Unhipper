@@ -3,7 +3,8 @@ use super::file;
 use super::layer;
 
 pub struct DirectoryData {
-
+	pub files: Vec<file::FileData>,
+	pub layers: Vec<layer::LayerData>
 }
 
 pub fn parse_directory(data: &[u8]) -> DirectoryData {
@@ -14,7 +15,7 @@ pub fn parse_directory(data: &[u8]) -> DirectoryData {
 	if &data[8..12] != "AINF".as_bytes() {
 		panic!("No AINF information header!");
 	}
-	let information_header_length = util::from_u8array::<usize>(&data[12..16]);
+	//let information_header_length = util::from_u8array::<usize>(&data[12..16]);
 	// bytes 16..20 should be null
 
 	// Load each file
@@ -40,7 +41,7 @@ pub fn parse_directory(data: &[u8]) -> DirectoryData {
 	if &data[8..12] != "LINF".as_bytes() {
 		panic!("No LINF layer table info header");
 	}
-	let layer_info_len = util::from_u8array::<usize>(&data[12..16]);
+	//let layer_info_len = util::from_u8array::<usize>(&data[12..16]);
 	//same as before, 16..20 is null
 
 	// parse layers
@@ -57,5 +58,8 @@ pub fn parse_directory(data: &[u8]) -> DirectoryData {
 
 	println!("Layer num: {}", layers.len());
 
-	DirectoryData { }
+	DirectoryData {
+		files:  files,
+		layers: layers
+	}
 }
