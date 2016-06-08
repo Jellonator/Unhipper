@@ -1,5 +1,6 @@
 use std::ops;
 use std::convert;
+use std::process;
 
 // Converts an array of u8 into a given type.
 // Works great with unsigned integer types like 'usize' or 'u8'
@@ -12,4 +13,9 @@ where T: ops::ShlAssign<T> + ops::BitOrAssign<T> + convert::From<u8> + Copy {
 	}
 
 	return ret;
+}
+
+pub fn nonpanic_exit(msg:&str) -> ! {
+	println!("{}", msg);
+	process::exit(0);
 }
