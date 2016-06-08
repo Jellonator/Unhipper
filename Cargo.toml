@@ -1,0 +1,6 @@
+[package]
+name = "unhipper"
+version = "0.1.0"
+authors = ["Jellonator <Jellonator00@gmail.com>"]
+
+[dependencies]
