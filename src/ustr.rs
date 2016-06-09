@@ -20,6 +20,10 @@ impl Ustr {
 			data: s.as_bytes().to_vec()
 		}
 	}
+
+	pub fn to_string(&self) -> String {
+		String::from_utf8_lossy(self.data.as_ref()).to_string()
+	}
 }
 
 impl fmt::Display for Ustr {

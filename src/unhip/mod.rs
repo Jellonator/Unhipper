@@ -1,20 +1,21 @@
 #![allow(dead_code)]
-mod header;
-mod file;
-mod directory;
-mod layer;
+pub mod header;
+pub mod file;
+pub mod directory;
+pub mod layer;
 
 use std::fs::File;
 use std::io::Read;
 use super::util;
 
 pub struct HipData {
-	header: header::HeaderData,
-	directory: directory::DirectoryData
+	pub header: header::HeaderData,
+	pub directory: directory::DirectoryData,
+	pub data: Vec<u8>
 }
 
 pub fn parse_data(data: &[u8]) -> HipData {
-	let originaldata = &data;
+	let originaldata = data.to_vec();
 	if &data[0..4] != "HIPA".as_bytes() {
 		panic!("Not a valid HIP file!");
 	}
@@ -33,15 +34,6 @@ pub fn parse_data(data: &[u8]) -> HipData {
 	let directory_len = util::from_u8array::<usize>(&data[4..8]);
 
 	let directory_data = directory::parse_directory(&data[8..8+directory_len]);
-	//
-	// for file in directory_data.files {
-	// 	if file.filetype.data == "TEXT".as_bytes() {
-	// 		println!("{}: {:?}",
-	// 			file.filename,
-	// 			String::from_utf8_lossy(file.get_data(&originaldata))
-	// 		)
-	// 	}
-	// }
 
 	let data = &data[8+directory_len..];
 	if &data[0..4] != "STRM".as_bytes() {
@@ -61,9 +53,12 @@ pub fn parse_data(data: &[u8]) -> HipData {
 	let package_other_length = util::from_u8array::<usize>(&data[8..12]);
 	let data = &data[12+package_other_length..];
 
+	println!("Data length: {}", data.len());
+
 	HipData {
 		header: header_data,
-		directory: directory_data
+		directory: directory_data,
+		data: originaldata
 	}
 }
 

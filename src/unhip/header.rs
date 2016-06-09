@@ -20,12 +20,16 @@ impl fmt::Display for HeaderDate {
 
 pub struct HeaderData {
 	pub version: u32,
+	pub version_compatible: u32,
+	pub version_client_major: u16,
+	pub version_client_minor: u16,
 	pub flags: Vec<u8>,
 	pub date: HeaderDate,
 	pub platform:  Ustr,
 	pub langauge:  Ustr,
 	pub format:    Ustr,
-	pub game_name: Ustr
+	pub game_name: Ustr,
+	original_data: Vec<u8>
 }
 
 impl fmt::Display for HeaderData {
@@ -40,10 +44,6 @@ Game is \"{3}\" for {4} {5} {6}
 	}
 }
 
-fn parse_version(data:&[u8]) -> u32 {
-	util::from_u8array::<u32>(&data[0..4])
-}
-
 fn parse_date(data:&[u8]) -> HeaderDate {
 	HeaderDate {
 		period:   Ustr::from_u8(&data[0..4]),
@@ -56,12 +56,16 @@ fn parse_date(data:&[u8]) -> HeaderDate {
 }
 
 pub fn parse_header(data: &[u8]) -> HeaderData {
+	let original = data.to_vec();
 	// Parse data
 	if &data[0..4] != "PVER".as_bytes() {
 		panic!("No PVER version!");
 	}
 	let version_len = util::from_u8array::<usize>(&data[4..8]);
-	let version = parse_version(&data[8..8+version_len]);
+	let version = util::from_u8array::<u32>(&data[8..12]);
+	let version_client_major = util::from_u8array::<u16>(&data[12..14]);
+	let version_client_minor = util::from_u8array::<u16>(&data[14..16]);
+	let version_compatible = util::from_u8array::<u32>(&data[16..20]);
 
 	// Parse flags
 	let data = &data[version_len+8..];
@@ -77,7 +81,11 @@ pub fn parse_header(data: &[u8]) -> HeaderData {
 		panic!("No PCNT count!");
 	}
 	let count_len = util::from_u8array::<usize>(&data[4..8]);
-	//TODO: Figure out wtf the pcnt data even is...???
+	//PCNT data: not necessary for header to load these
+	// 0..4 is number of files
+	// 4..8 is size of largest file
+	// 8..12 is size of largest layer
+	// 12..16 is size of largest virtual file
 
 	// Parse Date
 	let data = &data[8+count_len..];
@@ -122,11 +130,15 @@ pub fn parse_header(data: &[u8]) -> HeaderData {
 	let game_name = platform_data[3];
 	HeaderData {
 		version: version,
+		version_compatible: version_compatible,
+		version_client_major: version_client_major,
+		version_client_minor: version_client_minor,
 		flags: flags,
 		date: date,
 		platform:  Ustr::from_u8(platform ),
 		langauge:  Ustr::from_u8(langauge ),
 		format:    Ustr::from_u8(format   ),
-		game_name: Ustr::from_u8(game_name)
+		game_name: Ustr::from_u8(game_name),
+		original_data: original
 	}
 }

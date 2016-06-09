@@ -1,41 +1,15 @@
-mod unhip;
-mod util;
-mod ustr;
 use std::collections::HashMap;
+
+pub mod unhip;
+pub mod util;
+pub mod ustr;
+pub mod extract;
+pub mod help;
 
 pub struct ActionType {
 	pub help_text_short: String,
 	pub help_text_long:  String,
 	pub function_call:   Box<Fn(&[String])->bool>
-}
-
-pub fn print_help(functions: &HashMap<String, ActionType>) {
-	println!("Welcome to Unhipper, a small program to manage HIP files!");
-	for (_key,val) in functions {
-		println!("{}", val.help_text_short);
-	}
-}
-
-pub fn extract(args:&[String]) -> bool {
-	if args.len() != 2 {
-		return false;
-	}
-	let data = unhip::unhip(&args[0]);
-	true
-}
-
-pub fn print_help_sub(args:&[String], functions: &HashMap<String, ActionType>) -> bool {
-	if args.len() == 0 {
-		print_help(functions);
-	} else if args.len() > 1 {
-		return false;
-	} else {
-		match functions.get(&args[0]) {
-			Some(ref val) => println!("{}", val.help_text_long),
-			None => println!("No help for {}.", &args[0])
-		}
-	}
-	true
 }
 
 fn main() {
@@ -49,7 +23,7 @@ Usage:
 unhip extract {file} {directory}
 {file} is the name of the file to extract
 {directory} is where the file will be extracted to".to_string(),
-		function_call: Box::new(|a| extract(a))
+		function_call: Box::new(|a| extract::extract(a))
 	});
 
 	// Help function
@@ -65,14 +39,14 @@ unhip help {command}
 	let args = std::env::args().collect::<Vec<String>>();
 	let arguments = &args[1..];
 	if arguments.len() == 0 {
-		print_help(&actions);
+		help::print_help(&actions);
 	} else {
 		match arguments[0].as_ref() {
 			"help" => {
-				let result = print_help_sub(&arguments[1..], &actions);
+				let result = help::print_help_sub(&arguments[1..], &actions);
 				if !result {
 					println!("Error - invalid arguments!");
-					print_help_sub(vec![arguments[0].clone()].as_ref(), &actions);
+					help::print_help_sub(vec![arguments[0].clone()].as_ref(), &actions);
 				}
 			},
 			_ => {
@@ -81,12 +55,12 @@ unhip help {command}
 						let result = val.function_call.as_ref()(&arguments[1..]);
 						if !result {
 							println!("Error - invalid arguments!");
-							print_help_sub(vec![arguments[0].clone()].as_ref(), &actions);
+							help::print_help_sub(vec![arguments[0].clone()].as_ref(), &actions);
 						}
 					}
 					None => {
 						println!("Error - invalid arguments!");
-						print_help(&actions);
+						help::print_help(&actions);
 					}
 				};
 			}
