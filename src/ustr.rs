@@ -3,9 +3,15 @@
 use std::fmt;
 
 // Custom string type, which is a vector of u8 that is converted to String when printed
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Ustr {
 	pub data: Vec<u8>
+}
+
+impl fmt::Debug for Ustr {
+	fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{:?}", String::from_utf8_lossy(self.data.as_ref()))
+	}
 }
 
 impl Ustr {

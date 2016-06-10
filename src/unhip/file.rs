@@ -9,11 +9,11 @@ use super::super::ustr::Ustr;
 
 pub struct FileData {
 	pub filename: Ustr,
-	pub filename_real: Ustr,
+	pub filename_real: Option<Ustr>,
 	pub filetype: Ustr,
 	pub offset: usize,
 	pub length: usize,
-	pub hash: Ustr,
+	pub hash: u32,
 	pub uuid: u32,
 	pub flags: u32,
 	pub plus: u32,
@@ -38,18 +38,21 @@ pub fn parse_file(data:&[u8]) -> FileData {
 		panic!("No ADBG file name!");
 	}
 
-	let filedatas = &data[36..data.len()-4].split(|val| *val == 0).filter(|val| !val.is_empty()).collect::<Vec<&[u8]>>();
+	let filedatas = &data[36..data.len()-4]
+		.split(|val| *val == 0)
+		.filter(|val| !val.is_empty())
+		.collect::<Vec<&[u8]>>();
 	let filename_virtual = filedatas[0];
 	let filename_real = match filedatas.len() {
-		val if val < 2 => vec![],
-		_ => filedatas[1].to_vec()
+		val if val < 2 => None,
+		_ => Some(Ustr::from_u8(&filedatas[1]))
 	};
 
-	let hash = Ustr::from_u8(&data[data.len()-4..data.len()]);
+	let hash = util::from_u8array::<u32>(&data[data.len()-4..data.len()]);
 
 	FileData {
 		filename: Ustr::from_u8(filename_virtual),
-		filename_real: Ustr::from_u8(filename_real.as_slice()),
+		filename_real: filename_real,
 		filetype: filetype,
 		offset: offset,
 		length: length,
