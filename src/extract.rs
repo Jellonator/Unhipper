@@ -78,6 +78,7 @@ pub fn extract_header(header: &unhip::header::HeaderData, path: &PathBuf) {
 			let mut out = String::new();
 
 			out.push_str(&format!("Timestamp: {}\n", header.date.timestamp));
+			out.push_str(&format!("Modified: {}\n", header.modification_timestamp));
 			out.push_str(&format!("Date: {}\n",header.date.date));
 			out.push_str(&format!("Version: {version}.{major}.{minor} compat {compat}\n",
 				version = header.version,
@@ -147,7 +148,7 @@ pub fn extract(args:&[String]) -> bool {
 	}
 
 	extract_header(&data.header, &path.to_owned());
-	
+
 	// let mut tvec:Vec<u32> = vec![0;data.data.len()];
 	// let mut off:u32 = 0;
 	// println!("----SIZE----|----PLUS----|----TOTAL---|");

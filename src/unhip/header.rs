@@ -20,6 +20,7 @@ pub struct HeaderData {
 	pub version_client_minor: u16,
 	pub flags: Vec<u8>,
 	pub date: HeaderDate,
+	pub modification_timestamp: u32,
 	pub platform:      Ustr,
 	pub platform_name: Ustr,
 	pub langauge:      Ustr,
@@ -93,7 +94,7 @@ pub fn parse_header(data: &[u8]) -> HeaderData {
 		panic!("No PMOD modification date!");
 	}
 	let mod_date_len = util::from_u8array::<usize>(&data[4..8]);
-	//ignore this its actually nothing
+	let modification_date = util::from_u8array::<u32>(&data[8..12]);
 
 	// Parse platform ( the real stuff )
 	let data = &data[8+mod_date_len..];
@@ -122,6 +123,7 @@ pub fn parse_header(data: &[u8]) -> HeaderData {
 		version_client_minor: version_client_minor,
 		flags: flags,
 		date: date,
+		modification_timestamp: modification_date,
 		platform:      Ustr::from_u8(platform     ),
 		platform_name: Ustr::from_u8(platform_name),
 		langauge:      Ustr::from_u8(langauge     ),

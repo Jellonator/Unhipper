@@ -5,6 +5,7 @@ pub mod util;
 pub mod ustr;
 pub mod extract;
 pub mod help;
+pub mod pack;
 
 pub struct ActionType {
 	pub help_text_short: String,
@@ -34,6 +35,16 @@ Usage:
 unhip help {command}
 {command} is an optional argument for which command to give help for".to_string(),
 		function_call: Box::new(|_|{false})//ignored, handled below
+	});
+
+	actions.insert("pack".to_string(), ActionType {
+		help_text_short: "unhip pack {directory} {file}".to_string(),
+		help_text_long: "Packs a (valid) directory into a HIP file.
+Usage:
+unhip pack {directory} {file}
+{directory} is a folder containing all of the information and metadata to be packed
+{file} is the resulting file that will contain all of the information stored in {directory}".to_string(),
+		function_call: Box::new(|a| pack::pack(a))
 	});
 
 	let args = std::env::args().collect::<Vec<String>>();
