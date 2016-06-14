@@ -1,3 +1,5 @@
+extern crate rustc_serialize;
+
 use std::collections::HashMap;
 
 pub mod unhip;
@@ -14,6 +16,27 @@ pub struct ActionType {
 }
 
 fn main() {
+// 	println!("{:?}", util::to_u8array::<u64>(util::from_u8array::<u64>(&vec![1,2,3,4,5,6,7,8])));
+// 	println!("{:?}", util::parse_hexadecimal("0xff"));
+// 	println!("{:?}", util::parse_hexadecimal("0x00"));
+// 	println!("{:?}", util::parse_hexadecimal("0x0f"));
+// 	println!("{:?}", util::parse_hexadecimal("0xf0"));
+// 	println!("{:?}", util::parse_hexadecimal("ff"));
+// 	println!("{:?}", util::parse_hexadecimal("00"));
+// 	println!("{:?}", util::parse_hexadecimal("0f"));
+// 	println!("{:?}", util::parse_hexadecimal("f0"));
+// 	println!("{:?}", util::parse_hexadecimal("xx"));
+// 	println!("{:?}", util::parse_hexadecimal("0xfg"));
+// 	// let mut data = b"H...., W....!".to_vec();
+// 	// println!("{}", String::from_utf8_lossy(&data));
+// 	//
+// 	// util::replace_vec(&mut data[1..5], b"ello");
+// 	// util::replace_vec(&mut data[8..12], b"orld");
+// 	//
+// 	// println!("{}", String::from_utf8_lossy(&data));
+// }
+//
+// fn noot() {
 	let mut actions:HashMap<String, ActionType> = HashMap::new();
 
 	// Extract function
