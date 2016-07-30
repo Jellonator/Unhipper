@@ -126,7 +126,7 @@ fn parse_date(data:&[u8]) -> HeaderDate {
 }
 
 #[allow(unused_assignments)]
-pub fn parse_header(data: &[u8]) -> HeaderData {
+pub fn parse_header(data: &[u8]) -> Result<HeaderData, ()> {
 	let original = data.to_vec();
 
 	// Parse version
@@ -136,7 +136,10 @@ pub fn parse_header(data: &[u8]) -> HeaderData {
 			offset = o.next;
 			VersionData::load(&data[o.offset..o.next])
 		},
-		Err(err) => {panic!("{}", err);}
+		Err(err) => {
+			println!("{}", err);
+			return Err(());
+		}
 	};
 
 	// Parse flags
@@ -145,7 +148,10 @@ pub fn parse_header(data: &[u8]) -> HeaderData {
 			offset = o.next;
 			data[o.offset..o.next].to_vec()
 		},
-		Err(err) => {panic!("{}", err);}
+		Err(err) => {
+			println!("{}", err);
+			return Err(());
+		}
 	};
 
 	// Parse count
@@ -153,7 +159,10 @@ pub fn parse_header(data: &[u8]) -> HeaderData {
 		Ok(o) => {
 			offset = o.next;
 		},
-		Err(err) => {panic!("{}", err);}
+		Err(err) => {
+			println!("{}", err);
+			return Err(());
+		}
 	};
 	//PCNT data: not necessary for header to load these
 	// 0..4 is number of files
@@ -167,7 +176,10 @@ pub fn parse_header(data: &[u8]) -> HeaderData {
 			offset = o.next;
 			parse_date(&data[o.offset..o.next])
 		},
-		Err(err) => {panic!("{}", err);}
+		Err(err) => {
+			println!("{}", err);
+			return Err(());
+		}
 	};
 
 	// Parse modification Date
@@ -176,7 +188,10 @@ pub fn parse_header(data: &[u8]) -> HeaderData {
 			offset = o.next;
 			util::from_u8array::<u32>(&data[o.offset..o.next])
 		},
-		Err(err) => {panic!("{}", err);}
+		Err(err) => {
+			println!("{}", err);
+			return Err(());
+		}
 	};
 
 	// Parse platform ( the real stuff )
@@ -185,15 +200,18 @@ pub fn parse_header(data: &[u8]) -> HeaderData {
 			offset = o.next;
 			PlatformData::load(&data[o.offset..o.next])
 		},
-		Err(err) => {panic!("{}", err);}
+		Err(err) => {
+			println!("{}", err);
+			return Err(());
+		}
 	};
 
-	HeaderData {
+	Ok(HeaderData {
 		version: version,
 		flags: flags,
 		date: date,
 		modification_timestamp: mod_date,
 		platform: platform,
 		original_data: original
-	}
+	})
 }

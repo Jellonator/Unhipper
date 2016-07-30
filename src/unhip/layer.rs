@@ -81,13 +81,10 @@ pub fn get_layer_type(num: u32) -> LayerType {
 pub fn parse_layer(data: &[u8]) -> LayerData {
 	let mut uuids = Vec::new();
 
-	for i in 0..(data.len()-20)/4 {
+	let uuid_count = util::from_u8array::<usize>(&data[4..8]);
+	for i in 0..uuid_count {
 		let pos = i * 4 + 8;
 		uuids.push(util::from_u8array(&data[pos..4+pos]));
-	}
-
-	if uuids.len() != util::from_u8array::<usize>(&data[4..8]) {
-		println!("ERR");
 	}
 
 	LayerData {

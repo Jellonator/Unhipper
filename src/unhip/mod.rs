@@ -15,32 +15,45 @@ pub struct HipData {
 }
 
 #[allow(unused_assignments)]
-pub fn parse_data(data: &[u8]) -> HipData {
+pub fn parse_data(data: &[u8]) -> Result<HipData, ()> {
 	let originaldata = data.to_vec();
 
 	let mut offset:usize = 0;
 	match util::load_chunk(&data, b"HIPA", offset) {
-		Ok(o) => {offset = o.next;},
-		Err(err) => {panic!("{}", err);}
+		Ok(o) => {
+			offset = o.next;
+		},
+		Err(err) => {
+			println!("{}", err);
+			return Err(());
+		}
 	};
 
 	// Parse the header information
 	let header_data = match util::load_chunk(&data, b"PACK", offset) {
 		Ok(o) => {
 			offset = o.next;
-			header::parse_header(&data[o.offset..o.next])
+			match header::parse_header(&data[o.offset..o.next]) {
+				Ok(data) => data,
+				Err(_) => {return Err(());}
+			}
 		},
-		Err(err) => {panic!("{}", err);}
+		Err(err) => {
+			println!("{}", err);
+			return Err(());
+		}
 	};
 
-	println!("{}", header_data);
 	// Load directory/files
 	let directory_data = match util::load_chunk(&data, b"DICT", offset) {
 		Ok(o) => {
 			offset = o.next;
 			directory::parse_directory(&data[o.offset..o.next])
 		},
-		Err(err) => {panic!("{}", err);}
+		Err(err) => {
+			println!("{}", err);
+			return Err(());
+		}
 	};
 
 	// Ensure consistent file structure by checking all of the other headers
@@ -49,28 +62,39 @@ pub fn parse_data(data: &[u8]) -> HipData {
 			offset = o.next;
 			o.offset
 		},
-		Err(err) => {panic!("{}", err);}
+		Err(err) => {
+			println!("{}", err);
+			return Err(());
+		}
 	};
 
 	match util::load_chunk(&data, b"DHDR", dhdr_offset) {
 		Ok(o) => {
 			offset = o.next;
 		},
-		Err(err) => {panic!("{}", err);}
+		Err(err) => {
+			println!("{}", err);
+			return Err(());
+		}
 	};
 
 	match util::load_chunk(&data, b"DPAK", offset) {
 		Ok(o) => {
 			offset = o.next;
 		},
-		Err(err) => {panic!("{}", err);}
+		Err(err) => {
+			println!("{}", err);
+			return Err(());
+		}
 	};
 
-	HipData {
+	println!("{}", header_data);
+
+	Ok(HipData {
 		header: header_data,
 		directory: directory_data,
 		data: originaldata
-	}
+	})
 }
 
 pub fn unhip(filename:&str) -> Option<HipData> {
@@ -79,7 +103,10 @@ pub fn unhip(filename:&str) -> Option<HipData> {
 	match f {
 		Ok(ref mut filehandle) => {
 			match filehandle.read_to_end(&mut data){
-				Ok(_) => Some(parse_data(data.as_ref())),
+				Ok(_) => match parse_data(data.as_ref()) {
+					Ok(val) => Some(val),
+					Err(_) => None
+				},
 				Err(_) => {println!("Error reading file {}!", filename);None}
 			}
 		},
