@@ -1,5 +1,7 @@
 use super::super::util;
 use super::super::ustr::Ustr;
+use rustc_serialize::json::Json;
+use std::collections::BTreeMap;
 
 // FLAG DATA
 // 1 - source_file
@@ -24,21 +26,49 @@ impl FileData {
 	pub fn get_data<'a>(&self, data:&'a[u8]) -> &'a[u8] {
 		&data[self.offset..self.offset+self.length]
 	}
+
+	pub fn to_json(&self) -> Json {
+		let mut datamap = BTreeMap::new();
+		datamap.insert("filename".to_string(), Json::String(self.filename.to_string()));
+		datamap.insert("filetype".to_string(), Json::String(self.filetype.to_string()));
+		datamap.insert("uuid".to_string(), Json::String(format!("0x{val:>0width$X}", val=self.uuid, width=8)));
+		datamap.insert("plus".to_string(), Json::U64(self.plus as u64));
+		datamap.insert("flags".to_string(), Json::U64(self.flags as u64));
+		datamap.insert("hash".to_string(), Json::String(format!("0x{val:>0width$X}", val=self.hash, width=8)));
+		datamap.insert("size".to_string(), Json::U64(self.length as u64));
+
+		match &self.filename_real {
+			&Some(ref val) => {datamap.insert("filenamereal".to_string(), Json::String(val.to_string()));},
+			&None => {},
+		}
+
+		Json::Object(datamap)
+	}
 }
 
 pub fn parse_file(data:&[u8]) -> FileData {
+	if data.len() < 24 {
+		panic!("Error: invalid file!");
+	}
+
 	let uuid = util::from_u8array(&data[0..4]);
 	let filetype = Ustr::from_u8(&data[4..8]);
-	let offset = util::from_u8array::<usize>(&data[8..12]);
+	let data_offset = util::from_u8array::<usize>(&data[8..12]);
 	let length = util::from_u8array::<usize>(&data[12..16]);
 	let plus = util::from_u8array::<u32>(&data[16..20]);
 	let flags = util::from_u8array::<u32>(&data[20..24]);
 
-	if &data[24..28] != "ADBG".as_bytes() {
-		panic!("No ADBG file name!");
-	}
+	let mut offset = 24;
 
-	let filedatas = &data[36..data.len()-4]
+	match util::load_chunk(&data, b"ADBG", offset) {
+		Ok(o) => {
+			offset = o.offset;
+		},
+		Err(err) => {panic!("{}", err);}
+	};
+
+	// Next four bytes are null
+	let filedatas = &data[offset+4..data.len()-4]
 		.split(|val| *val == 0)
 		.filter(|val| !val.is_empty())
 		.collect::<Vec<&[u8]>>();
@@ -54,7 +84,7 @@ pub fn parse_file(data:&[u8]) -> FileData {
 		filename: Ustr::from_u8(filename_virtual),
 		filename_real: filename_real,
 		filetype: filetype,
-		offset: offset,
+		offset: data_offset,
 		length: length,
 		plus: plus,
 		flags: flags,

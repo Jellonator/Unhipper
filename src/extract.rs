@@ -33,22 +33,7 @@ pub fn extract_file(data: &unhip::HipData, file: &unhip::file::FileData, path: &
 	// Create metadata file
 	match File::create(folder.join("meta.json")) {
 		Ok (ref mut fhandle) => {
-			let mut datamap = BTreeMap::new();
-			datamap.insert("filename".to_string(), Json::String(file.filename.to_string()));
-			datamap.insert("filetype".to_string(), Json::String(file.filetype.to_string()));
-			datamap.insert("uuid".to_string(), Json::String(format!("0x{val:>0width$X}", val=file.uuid, width=8)));
-			datamap.insert("plus".to_string(), Json::U64(file.plus as u64));
-			datamap.insert("flags".to_string(), Json::U64(file.flags as u64));
-			datamap.insert("hash".to_string(), Json::U64(file.hash as u64));
-
-			match &file.filename_real {
-				&Some(ref val) => {datamap.insert("filenamereal".to_string(), Json::String(val.to_string()));},
-				&None => {},
-			}
-
-			let out_json:Json = Json::Object(datamap);
-
-			match fhandle.write_all(out_json.pretty().to_string().as_bytes()){
+			match fhandle.write_all(file.to_json().pretty().to_string().as_bytes()){
 				Ok (_) => {},
 				Err (err) => println!("{}", err)
 			}
@@ -61,16 +46,7 @@ pub fn extract_layer(layer: &unhip::layer::LayerData, path: &PathBuf, idx: u32) 
 	let filepath = path.join(format!("layer{}.json", idx));
 	match File::create(&filepath) {
 		Ok (ref mut fhandle) => {
-			let mut datamap = BTreeMap::new();
-
-			datamap.insert("type".to_string(), Json::U64(layer.typenum as u64));
-			datamap.insert("uuids".to_string(), Json::Array(
-				layer.uuids.iter().map(|val|Json::String(format!("0x{val:>0width$X}", val=*val, width=8))).collect()
-			));
-
-			let out_json:Json = Json::Object(datamap);
-
-			match fhandle.write_all(out_json.pretty().to_string().as_bytes()){
+			match fhandle.write_all(layer.to_json().pretty().to_string().as_bytes()){
 				Ok (_) => {},
 				Err (err) => println!("{}", err)
 			}
@@ -83,32 +59,7 @@ pub fn extract_header(header: &unhip::header::HeaderData, path: &PathBuf) {
 	let filepath = path.join("header.json");
 	match File::create(&filepath) {
 		Ok (ref mut fhandle) => {
-			let mut datetimemap = BTreeMap::new();
-			datetimemap.insert("timestamp".to_string(), Json::U64(header.date.timestamp as u64));
-			datetimemap.insert("modified".to_string(), Json::U64(header.modification_timestamp as u64));
-			datetimemap.insert("date".to_string(), Json::String(header.date.date.to_string()));
-
-			let mut versionmap = BTreeMap::new();
-			versionmap.insert("version".to_string(), Json::U64(header.version as u64));
-			versionmap.insert("major".to_string(), Json::U64(header.version_client_major as u64));
-			versionmap.insert("minor".to_string(), Json::U64(header.version_client_minor as u64));
-			versionmap.insert("compatible".to_string(), Json::U64(header.version_compatible as u64));
-
-			let mut datamap = BTreeMap::new();
-			datamap.insert("version".to_string(), Json::Object(versionmap));
-			datamap.insert("time".to_string(), Json::Object(datetimemap));
-			datamap.insert("platformshort".to_string(), Json::String(header.platform.to_string()));
-			datamap.insert("platformlong".to_string(), Json::String(header.platform_name.to_string()));
-			datamap.insert("language".to_string(), Json::String(header.langauge.to_string()));
-			datamap.insert("format".to_string(), Json::String(header.format.to_string()));
-			datamap.insert("name".to_string(), Json::String(header.game_name.to_string()));
-			datamap.insert("flags".to_string(), Json::Array(
-				header.flags.iter().map(|val|Json::U64(*val as u64)).collect()
-			));
-
-			let out_json:Json = Json::Object(datamap);
-
-			match fhandle.write_all(out_json.pretty().to_string().as_bytes()){
+			match fhandle.write_all(header.to_json().pretty().to_string().as_bytes()){
 				Ok (_) => {},
 				Err (err) => println!("{}", err)
 			}

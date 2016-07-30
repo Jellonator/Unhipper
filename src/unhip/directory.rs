@@ -7,56 +7,78 @@ pub struct DirectoryData {
 	pub layers: Vec<layer::LayerData>
 }
 
+#[allow(unused_assignments)]
 pub fn parse_directory(data: &[u8]) -> DirectoryData {
-	if &data[0..4] != "ATOC".as_bytes() {
-		panic!("No ATOC table of contents header!");
-	}
-	let table_of_contents_length = util::from_u8array::<usize>(&data[4..8]);
-	if &data[8..12] != "AINF".as_bytes() {
-		panic!("No AINF information header!");
-	}
-	//let information_header_length = util::from_u8array::<usize>(&data[12..16]);
-	// bytes 16..20 should be null
+	let mut offset = 0;
+	let files_start;
+	let files_end;
+	match util::load_chunk(data, b"ATOC", offset) {
+		Ok(o) => {
+			files_start = o.offset + 12;
+			files_end = o.next;
+			offset = o.offset;
+		},
+		Err(err) => {panic!("{}", err);}
+	};
+
+	match util::load_chunk(data, b"AINF", offset) {
+		Ok(o) => {
+			offset = o.next;
+			// content should be null \0\0\0\0
+		},
+		Err(err) => {panic!("{}", err);}
+	};
 
 	// Load each file
-	let mut datapos = 20;
 	let mut files = Vec::new();
-	while datapos < table_of_contents_length + 8 {
-		if &data[datapos..4+datapos] != "AHDR".as_bytes() {
-			panic!("No AHDR File data header!");
+	{
+		let mut filepos = files_start;
+		while filepos < files_end {
+			match util::load_chunk(data, b"AHDR", filepos) {
+				Ok(o) => {
+					files.push(file::parse_file(&data[o.offset..o.next]));
+					filepos = o.next;
+				},
+				Err(err) => {panic!("{}", err);}
+			};
 		}
-		let file_length = util::from_u8array::<usize>(&data[4+datapos..8+datapos]);
-		files.push(file::parse_file(&data[8+datapos..8+datapos+file_length]));
-		datapos += file_length + 8;
 	}
-
 	println!("There are {} files!", files.len());
+	offset = files_end;
 
 	// Layer Table of contents
-	let data = &data[datapos..];
-	if &data[0..4] != "LTOC".as_bytes() {
-		panic!("No LTOC layer table header!");
-	}
-	let layer_len = util::from_u8array::<usize>(&data[4..8]);
-	if &data[8..12] != "LINF".as_bytes() {
-		panic!("No LINF layer table info header");
-	}
-	//let layer_info_len = util::from_u8array::<usize>(&data[12..16]);
-	//same as before, 16..20 is null
+	let layers_start;
+	let layers_end;
+	match util::load_chunk(data, b"LTOC", offset) {
+		Ok(o) => {
+			layers_start = o.offset + 12;
+			layers_end = o.next;
+			offset = o.offset;
+		},
+		Err(err) => {panic!("{}", err);}
+	};
 
-	// parse layers
-	let mut datapos = 20;
+	match util::load_chunk(data, b"LINF", offset) {
+		Ok(o) => {
+			offset = o.next;
+			// Again, four null bytes
+		},
+		Err(err) => {panic!("{}", err);}
+	};
+
 	let mut layers = Vec::new();
-	while datapos < layer_len + 8 {
-		if &data[datapos..4+datapos] != "LHDR".as_bytes() {
-			panic!("No LHDR LTable element header!");
+	{
+		let mut layerpos = layers_start;
+		while layerpos < layers_end {
+			match util::load_chunk(data, b"LHDR", layerpos) {
+				Ok(o) => {
+					layers.push(layer::parse_layer(&data[o.offset..o.next]));
+					layerpos = o.next;
+				},
+				Err(err) => {panic!("{}", err);}
+			};
 		}
-		let layer_length = util::from_u8array::<usize>(&data[4+datapos..8+datapos]);
-		layers.push(layer::parse_layer(&data[8+datapos..8+datapos+layer_length]));
-		datapos += layer_length + 8;
 	}
-
-	println!("Layer num: {}", layers.len());
 
 	DirectoryData {
 		files:  files,

@@ -14,46 +14,57 @@ pub struct HipData {
 	pub data: Vec<u8>
 }
 
+#[allow(unused_assignments)]
 pub fn parse_data(data: &[u8]) -> HipData {
 	let originaldata = data.to_vec();
-	if &data[0..4] != "HIPA".as_bytes() {
-		panic!("Not a valid HIP file!");
-	}
-	if &data[8..12] != "PACK".as_bytes() {
-		panic!("Missing PACK header!");
-	}
-	let header_length = util::from_u8array::<usize>(&data[12..16]);
-	let header_data = header::parse_header(&data[16..16+header_length]);
+
+	let mut offset:usize = 0;
+	match util::load_chunk(&data, b"HIPA", offset) {
+		Ok(o) => {offset = o.next;},
+		Err(err) => {panic!("{}", err);}
+	};
+
+	// Parse the header information
+	let header_data = match util::load_chunk(&data, b"PACK", offset) {
+		Ok(o) => {
+			offset = o.next;
+			header::parse_header(&data[o.offset..o.next])
+		},
+		Err(err) => {panic!("{}", err);}
+	};
+
 	println!("{}", header_data);
+	// Load directory/files
+	let directory_data = match util::load_chunk(&data, b"DICT", offset) {
+		Ok(o) => {
+			offset = o.next;
+			directory::parse_directory(&data[o.offset..o.next])
+		},
+		Err(err) => {panic!("{}", err);}
+	};
 
-	let data = &data[16+header_length..];
-	if &data[0..4] != "DICT".as_bytes() {
-		panic!("Missing DICT directory info!");
-	}
+	// Ensure consistent file structure by checking all of the other headers
+	let dhdr_offset = match util::load_chunk(&data, b"STRM", offset) {
+		Ok(o) => {
+			offset = o.next;
+			o.offset
+		},
+		Err(err) => {panic!("{}", err);}
+	};
 
-	let directory_len = util::from_u8array::<usize>(&data[4..8]);
+	match util::load_chunk(&data, b"DHDR", dhdr_offset) {
+		Ok(o) => {
+			offset = o.next;
+		},
+		Err(err) => {panic!("{}", err);}
+	};
 
-	let directory_data = directory::parse_directory(&data[8..8+directory_len]);
-
-	let data = &data[8+directory_len..];
-	if &data[0..4] != "STRM".as_bytes() {
-		panic!("No STRM stream data!");
-	}
-	// let stream_length = util::from_u8array::<usize>(&data[4..8]);
-	if &data[8..12] != "DHDR".as_bytes() {
-		panic!("No DHDR directory header!");
-	}
-	let directory_header_len = util::from_u8array::<usize>(&data[12..16]);
-	let data = &data[16+directory_header_len..];
-
-	if &data[0..4] != "DPAK".as_bytes() {
-		panic!("No DPAK directory package!");
-	}
-	// let package_length = util::from_u8array::<usize>(&data[4..8]);
-	let package_other_length = util::from_u8array::<usize>(&data[8..12]);
-	let data = &data[12+package_other_length..];
-
-	println!("Data length: {}", data.len());
+	match util::load_chunk(&data, b"DPAK", offset) {
+		Ok(o) => {
+			offset = o.next;
+		},
+		Err(err) => {panic!("{}", err);}
+	};
 
 	HipData {
 		header: header_data,

@@ -1,5 +1,7 @@
 use super::super::util;
 use std::fmt;
+use rustc_serialize::json::Json;
+use std::collections::BTreeMap;
 
 pub struct LayerData {
 	pub typenum: u32,
@@ -26,6 +28,19 @@ pub enum LayerType {
 impl LayerType {
 	pub fn to_u32(&self) -> u32 {
 		*self as u32
+	}
+}
+
+impl LayerData {
+	pub fn to_json(&self) -> Json {
+		let mut datamap = BTreeMap::new();
+
+		datamap.insert("type".to_string(), Json::U64(self.typenum as u64));
+		datamap.insert("uuids".to_string(), Json::Array(
+			self.uuids.iter().map(|val|Json::String(format!("0x{val:>0width$X}", val=*val, width=8))).collect()
+		));
+
+		Json::Object(datamap)
 	}
 }
 

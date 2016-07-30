@@ -5,6 +5,7 @@ use super::unhip;
 use std::mem;
 use std::cmp;
 use std::num;
+use std::fmt;
 
 // Converts an array of u8 into a given type.
 // Works great with unsigned integer types like 'usize' or 'u8'
@@ -28,22 +29,13 @@ pub fn get_file_name(f:&unhip::file::FileData) -> String {
 	format!("{}-{:X}.{}", f.filename, f.uuid, f.filetype)
 }
 
-pub fn to_u8array<VType>(val:VType) -> Vec<u8>
-where VType: Copy + Sized {
-	let mut ret = Vec::new();
-	ret.reserve(mem::size_of::<VType>());
-
-	let ptr = &val as *const VType;
-	let u8ptr = ptr as *const u8;
-
+pub fn to_u8array<VType:Sized>(val:&VType) -> Vec<u8> {
+	let u8ptr = val as *const VType as *const u8;
 	let valsize = mem::size_of::<VType>() as isize;
-	for i in 0..valsize {
-		ret.push(
-			unsafe {*u8ptr.offset(valsize-i-1)}
-		);
-	}
-
-	ret
+	// HIP files are big-endian, so it has to be done in reverse order
+	(0..valsize).map( |i|
+		unsafe { *u8ptr.offset( valsize-i-1 ) }
+	).collect::<Vec<u8>>()
 }
 
 pub fn replace_vec<T>(to: &mut[T], from: &[T])
@@ -61,4 +53,63 @@ pub fn parse_hexadecimal(val : &str) -> Result<u64, num::ParseIntError> {
 	};
 
 	u64::from_str_radix(&val, 16)
+}
+
+pub enum LoadChunkError {
+	Invalid,
+	Short(usize),
+	BadHeader{expect:String, got:String}
+}
+
+#[derive(Debug)]
+pub struct LoadChunkData {
+	pub length: usize,
+	pub offset: usize,
+	pub next:   usize
+}
+
+impl fmt::Display for LoadChunkError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			LoadChunkError::Invalid => {
+				write!(f, "Chunk is invalid!")
+			},
+			LoadChunkError::Short(len) => {
+				write!(f, "Chunk has invalid length! Expected: {}", len)
+			},
+			LoadChunkError::BadHeader{ref expect, ref got} => {
+				write!(f, "Chunk has invalid header! Expected: {}, Got: {}", expect, got)
+			}
+		}
+	}
+}
+
+pub fn load_chunk(val: &[u8], head: &[u8; 4], offset: usize) -> Result<LoadChunkData, LoadChunkError> {
+	// All headers must be at least 8 bytes in length (4 for header, 4 for length)
+	// Anything else is invalid
+	if val.len() < 8 + offset {
+		return Err(LoadChunkError::Invalid);
+	}
+
+	let val = &val[offset..];
+	let total_len = val.len();
+
+	// Check if chunk header matches
+	if &val[0..4] == head {
+		let expected_len = from_u8array::<usize>(&val[4..8]);
+		if total_len < expected_len + 8 {
+			Err(LoadChunkError::Short(expected_len))
+		} else {
+			Ok(LoadChunkData {
+				next:   offset + expected_len + 8,
+				offset: offset + 8,
+				length: expected_len
+			})
+		}
+	} else {
+		Err(LoadChunkError::BadHeader{
+			expect: String::from_utf8_lossy(head).to_string(),
+			got:    String::from_utf8_lossy(&val[0..4]).to_string()
+		})
+	}
 }

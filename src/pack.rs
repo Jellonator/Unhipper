@@ -24,7 +24,7 @@ impl HeaderPack {
 			.find("flags").unwrap().as_array().unwrap()
 			.iter().map(|val|val.as_u64().unwrap() as u8)
 			.collect();
-		
+
 		let header_format        = jsondata.find("format"       ).unwrap().as_string().unwrap();
 		let header_language      = jsondata.find("language"     ).unwrap().as_string().unwrap();
 		let header_platformlong  = jsondata.find("platformlong" ).unwrap().as_string().unwrap();
@@ -43,6 +43,9 @@ impl HeaderPack {
 		let version_compatible = versiondata.find("compatible").unwrap().as_u64().unwrap();
 
 		println!("Successfully loaded data!");
+
+		let mut outdata:Vec<u8> = Vec::new();
+		outdata.extend_from_slice(b"HIPA\0\0\0\0PACK\0\0\0\0");
 
 		HeaderPack {
 			data: vec![]
