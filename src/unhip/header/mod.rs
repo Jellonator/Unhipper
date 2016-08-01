@@ -10,6 +10,7 @@ use std::collections::BTreeMap;
 use self::date::Date;
 use self::platform::Platform;
 use self::version::Version;
+use super::directory::DirectoryData;
 
 #[derive(Debug)]
 pub struct HeaderData {
@@ -49,7 +50,109 @@ impl HeaderData {
 			platform: Platform::from_json(&platform_data)
 		}
 	}
+
+	pub fn to_vec(&self, dir: &DirectoryData) -> Vec<u8> {
+		let mut data = Vec::new();
+		data.append(&mut self.version.to_vec());
+		data.append(&mut util::create_chunk(self.flags.clone(), b"PFLG"));
+		//TODO: implement actual file counting, right now it is junk data!
+		data.append(&mut dir.count_to_vec());
+		data.append(&mut self.date.to_vec());
+		data.append(&mut self.platform.to_vec());
+		util::create_chunk(data, b"PACK")
+	}
+
+	#[allow(unused_assignments)]
+	pub fn parse(data: &[u8]) -> Result<HeaderData, ()> {
+		// Parse version
+		let mut offset = 0;
+		let version = match util::load_chunk(data, b"PVER", offset) {
+			Ok(o) => {
+				offset = o.next;
+				Version::load(&data[o.offset..o.next])
+			},
+			Err(err) => {
+				println!("{}", err);
+				return Err(());
+			}
+		};
+
+		// Parse flags
+		let flags = match util::load_chunk(data, b"PFLG", offset) {
+			Ok(o) => {
+				offset = o.next;
+				data[o.offset..o.next].to_vec()
+			},
+			Err(err) => {
+				println!("{}", err);
+				return Err(());
+			}
+		};
+
+		// Parse count
+		match util::load_chunk(data, b"PCNT", offset) {
+			Ok(o) => {
+				offset = o.next;
+			},
+			Err(err) => {
+				println!("{}", err);
+				return Err(());
+			}
+		};
+
+		// Parse Datetime
+		let date_chunk = match util::load_chunk(data, b"PCRT", offset) {
+			Ok(o) => {
+				offset = o.next;
+				&data[o.offset..o.next]
+			},
+			Err(err) => {
+				println!("{}", err);
+				return Err(());
+			}
+		};
+
+		// Parse modification Date
+		let mod_date = match util::load_chunk(data, b"PMOD", offset) {
+			Ok(o) => {
+				offset = o.next;
+				util::from_u8array::<u32>(&data[o.offset..o.next])
+			},
+			Err(err) => {
+				println!("{}", err);
+				return Err(());
+			}
+		};
+
+		let date = Date::load(date_chunk, mod_date);
+
+		// Parse platform ( the real stuff )
+		let platform = match util::load_chunk(data, b"PLAT", offset) {
+			Ok(o) => {
+				offset = o.next;
+				Platform::load(&data[o.offset..o.next])
+			},
+			Err(err) => {
+				println!("{}", err);
+				return Err(());
+			}
+		};
+
+		Ok(HeaderData {
+			version: version,
+			flags: flags,
+			date: date,
+			platform: platform
+		})
+	}
 }
+
+//PCNT data: not necessary for header to load these
+// 0..4   is number of files
+// 4..8   is number of layers
+// 8..12  is size of largest file
+// 12..16 is size of largest layer
+// 16..20 is size of largest virtual file
 
 impl fmt::Display for HeaderData {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -61,93 +164,4 @@ Game is {3:?} for {4:?} {5:?} {6:?} {7:?}
 		self.version.version, self.flags, self.date, self.platform.game_name,
 		self.platform.platform, self.platform.format, self.platform.language, self.platform.platform_name)
 	}
-}
-
-#[allow(unused_assignments)]
-pub fn parse_header(data: &[u8]) -> Result<HeaderData, ()> {
-	// Parse version
-	let mut offset = 0;
-	let version = match util::load_chunk(data, b"PVER", offset) {
-		Ok(o) => {
-			offset = o.next;
-			Version::load(&data[o.offset..o.next])
-		},
-		Err(err) => {
-			println!("{}", err);
-			return Err(());
-		}
-	};
-
-	// Parse flags
-	let flags = match util::load_chunk(data, b"PFLG", offset) {
-		Ok(o) => {
-			offset = o.next;
-			data[o.offset..o.next].to_vec()
-		},
-		Err(err) => {
-			println!("{}", err);
-			return Err(());
-		}
-	};
-
-	// Parse count
-	match util::load_chunk(data, b"PCNT", offset) {
-		Ok(o) => {
-			offset = o.next;
-		},
-		Err(err) => {
-			println!("{}", err);
-			return Err(());
-		}
-	};
-	//PCNT data: not necessary for header to load these
-	// 0..4 is number of files
-	// 4..8 is size of largest file
-	// 8..12 is size of largest layer
-	// 12..16 is size of largest virtual file
-
-	// Parse Datetime
-	let date_chunk = match util::load_chunk(data, b"PCRT", offset) {
-		Ok(o) => {
-			offset = o.next;
-			&data[o.offset..o.next]
-		},
-		Err(err) => {
-			println!("{}", err);
-			return Err(());
-		}
-	};
-
-	// Parse modification Date
-	let mod_date = match util::load_chunk(data, b"PMOD", offset) {
-		Ok(o) => {
-			offset = o.next;
-			util::from_u8array::<u32>(&data[o.offset..o.next])
-		},
-		Err(err) => {
-			println!("{}", err);
-			return Err(());
-		}
-	};
-
-	let date = Date::load(date_chunk, mod_date);
-
-	// Parse platform ( the real stuff )
-	let platform = match util::load_chunk(data, b"PLAT", offset) {
-		Ok(o) => {
-			offset = o.next;
-			Platform::load(&data[o.offset..o.next])
-		},
-		Err(err) => {
-			println!("{}", err);
-			return Err(());
-		}
-	};
-
-	Ok(HeaderData {
-		version: version,
-		flags: flags,
-		date: date,
-		platform: platform
-	})
 }

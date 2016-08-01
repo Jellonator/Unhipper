@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 pub struct LayerData {
 	pub typenum: u32,
 	pub uuids: Vec<u32>,
-	pub original_data: Vec<u8>
+	index: u32
 }
 
 #[derive(Copy, Clone)]
@@ -39,8 +39,25 @@ impl LayerData {
 		datamap.insert("uuids".to_string(), Json::Array(
 			self.uuids.iter().map(|val|Json::String(format!("0x{val:>0width$X}", val=*val, width=8))).collect()
 		));
+		datamap.insert("id".to_string(), Json::U64(self.index as u64));
 
 		Json::Object(datamap)
+	}
+
+	pub fn parse(data: &[u8], index: u32) -> LayerData {
+		let mut uuids = Vec::new();
+
+		let uuid_count = util::from_u8array::<usize>(&data[4..8]);
+		for i in 0..uuid_count {
+			let pos = i * 4 + 8;
+			uuids.push(util::from_u8array(&data[pos..4+pos]));
+		}
+
+		LayerData {
+			typenum: util::from_u8array::<u32>(&data[0..4]),
+			uuids: uuids,
+			index: index
+		}
 	}
 }
 
@@ -75,21 +92,5 @@ pub fn get_layer_type(num: u32) -> LayerType {
 		8 => LayerType::Cutscene,
 		10=> LayerType::JspInfo,
 		_ => LayerType::Unknown
-	}
-}
-
-pub fn parse_layer(data: &[u8]) -> LayerData {
-	let mut uuids = Vec::new();
-
-	let uuid_count = util::from_u8array::<usize>(&data[4..8]);
-	for i in 0..uuid_count {
-		let pos = i * 4 + 8;
-		uuids.push(util::from_u8array(&data[pos..4+pos]));
-	}
-
-	LayerData {
-		original_data: data.to_vec(),
-		typenum: util::from_u8array::<u32>(&data[0..4]),
-		uuids: uuids
 	}
 }

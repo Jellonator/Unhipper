@@ -2,13 +2,13 @@
 
 use std::path::*;
 // use std::io;
-// use std::fs;
+use std::fs;
 use std::fs::File;
-use std::io::Read;
 // use super::unhip;
-// use super::util;
-use super::unhip::*;
-
+use util;
+use unhip::*;
+// use ustr::Ustr;
+use std::io::prelude::*;
 // use std::collections::BTreeMap;
 use rustc_serialize::json::Json;
 
@@ -31,7 +31,27 @@ pub fn pack(args:&[String]) -> bool {
 
 	let header_data = header::HeaderData::from_json(&header_json);
 
-	println!("{:?}", header_data);
+	// let mut files = Vec::new();
+
+	let mut data = util::create_chunk(vec![], b"HIPA");
+	data.append(&mut header_data.to_vec(&directory::DirectoryData{files:Vec::new(),layers:Vec::new()}));
+
+	match File::create(targetpath) {
+		Ok(mut file_handle) => {
+			match file_handle.write_all(&data) {
+				Ok(_) => {},
+				Err(err) => {println!("{}", err); return true;}
+			}
+		},
+		Err(err) => {println!("{}", err); return true;}
+	}
+
+	let paths = fs::read_dir(datapath).unwrap();
+
+	for path in paths {
+		println!("Name: {}", path.unwrap().file_name().to_string_lossy());
+	}
+	// println!("Length: {:?}", util::vec_len(&v));
 
 	true
 }

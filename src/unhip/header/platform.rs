@@ -1,6 +1,7 @@
 use ustr::Ustr;
 use rustc_serialize::json::Json;
 use std::collections::BTreeMap;
+use util;
 
 #[derive(Debug)]
 pub struct Platform {
@@ -55,5 +56,21 @@ impl Platform {
 			format:        Ustr::from_str(data.find("format")       .unwrap().as_string().unwrap()),
 			game_name:     Ustr::from_str(data.find("name")         .unwrap().as_string().unwrap())
 		}
+	}
+
+	pub fn to_vec(&self) -> Vec<u8> {
+		let mut data:Vec<u8> = Vec::new();
+		data.extend_from_slice(&self.platform.data);
+		data.append(&mut vec![0;2]);
+		data.extend_from_slice(&self.platform_name.data);
+		data.append(&mut vec![0;2]);
+		data.extend_from_slice(&self.format.data);
+		data.append(&mut vec![0;2]);
+		data.extend_from_slice(&self.language.data);
+		data.append(&mut vec![0;1]);//Only one null here!!!
+		data.extend_from_slice(&self.game_name.data);
+		data.append(&mut vec![0;2]);
+
+		util::create_chunk(data, b"PLAT")
 	}
 }

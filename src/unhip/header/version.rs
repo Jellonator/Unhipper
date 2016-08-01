@@ -37,4 +37,14 @@ impl Version {
 			client_minor: data.find("minor")     .unwrap().as_u64().unwrap() as u16
 		}
 	}
+
+	pub fn to_vec(&self) -> Vec<u8> {
+		let mut data:Vec<u8> = Vec::new();
+		data.extend_from_slice(&util::to_u8array(&self.version));
+		data.extend_from_slice(&util::to_u8array(&self.client_major));
+		data.extend_from_slice(&util::to_u8array(&self.client_minor));
+		data.extend_from_slice(&util::to_u8array(&self.compatible));
+
+		util::create_chunk(data, b"PVER")
+	}
 }

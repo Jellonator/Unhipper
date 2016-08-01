@@ -20,6 +20,22 @@ where T: ops::ShlAssign<T> + ops::BitOrAssign<T> + convert::From<u8> + Copy {
 	return ret;
 }
 
+pub fn vec_len<T>(vec: &Vec<T>) -> [u8;4] {
+	let len = vec.len() as u32;
+	let mut ret:[u8;4] = unsafe{mem::transmute_copy(&len)};
+	ret.reverse();
+	ret
+}
+
+pub fn create_chunk(mut data:Vec<u8>, header: &[u8; 4]) -> Vec<u8> {
+	let mut ret = Vec::new();
+	ret.extend_from_slice(header);
+
+	ret.extend_from_slice(&vec_len(&data));
+	ret.append(&mut data);
+	ret
+}
+
 pub fn nonpanic_exit(msg:&str) -> ! {
 	println!("{}", msg);
 	process::exit(0);

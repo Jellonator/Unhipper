@@ -35,6 +35,18 @@ impl Date {
 			date: Ustr::from_str(data.find("date").unwrap().as_string().unwrap())
 		}
 	}
+
+	pub fn to_vec(&self) -> Vec<u8> {
+		let mut data:Vec<u8> = Vec::new();
+		data.append(&mut util::to_u8array(&self.timestamp));
+		data.extend_from_slice(&self.date.data);
+		data.append(&mut vec![0,0]);
+
+		let mut ret = util::create_chunk(data, b"PCRT");
+		ret.append(&mut util::create_chunk(util::to_u8array(&self.modified), b"PMOD"));
+
+		ret
+	}
 }
 
 impl fmt::Display for Date {

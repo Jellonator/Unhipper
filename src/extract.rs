@@ -106,7 +106,7 @@ pub fn extract(args:&[String]) -> bool {
 			return true;
 		}
 	}
-	let data = unhip::unhip(&args[0]).unwrap();
+	let data = unhip::HipData::unhip(&args[0]).unwrap();
 	// Create data folder
 	match fs::create_dir_all(&path) {
 		Ok(_) => println!("Successfully created base folder."),
