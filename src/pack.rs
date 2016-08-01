@@ -31,10 +31,7 @@ pub fn pack(args:&[String]) -> bool {
 
 	let header_data = header::HeaderData::from_json(&header_json);
 
-
-	let mut out = Vec::new();
-
-	out.extend_from_slice(b"HIPA\0\0\0\0");//Primary header
+	println!("{:?}", header_data);
 
 	true
 }
