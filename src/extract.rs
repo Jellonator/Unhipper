@@ -11,14 +11,30 @@ pub fn extract_file(data: &unhip::HipData, file: &unhip::file::FileData, path: &
 	// Create folder
 	let mut folder = path.to_owned();
 	folder.push(file.filetype.to_string());
-	folder.push(util::get_file_name(&file));
+	let data_folder = "data";
+	let meta_folder = "meta";
+
 	match fs::create_dir_all(&folder) {
 		Ok(_) => {},
 		Err (err) => println!("{}", err)
 	}
 
+	match fs::create_dir_all(folder.join(&data_folder)) {
+		Ok(_) => {},
+		Err (err) => println!("{}", err)
+	}
+
+	match fs::create_dir_all(folder.join(&meta_folder)) {
+		Ok(_) => {},
+		Err (err) => println!("{}", err)
+	}
+
+	let file_name = util::get_file_name(&file);
+	let file_path = folder.join(&data_folder).join(format!("{}.{}", file_name, file.filetype));
+	let meta_path = folder.join(&meta_folder).join(format!("{}.{}.json", file_name, file.filetype));
+
 	// Create data file
-	match File::create(folder.join(format!("data.{}", file.filetype.to_string()))) {
+	match File::create(file_path) {
 		Ok(ref mut fhandle) => {
 			match fhandle.write_all(file.get_data(data.data.as_slice())) {
 				Ok (_) => {},
@@ -29,7 +45,7 @@ pub fn extract_file(data: &unhip::HipData, file: &unhip::file::FileData, path: &
 	}
 
 	// Create metadata file
-	match File::create(folder.join("meta.json")) {
+	match File::create(meta_path) {
 		Ok (ref mut fhandle) => {
 			match fhandle.write_all(file.to_json().pretty().to_string().as_bytes()){
 				Ok (_) => {},

@@ -26,7 +26,7 @@ pub fn nonpanic_exit(msg:&str) -> ! {
 }
 
 pub fn get_file_name(f:&unhip::file::FileData) -> String {
-	format!("{}-{:X}.{}", f.filename, f.uuid, f.filetype)
+	format!("{}-{:X}", f.filename, f.uuid)
 }
 
 pub fn to_u8array<VType:Sized>(val:&VType) -> Vec<u8> {
