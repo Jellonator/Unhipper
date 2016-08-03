@@ -1,5 +1,5 @@
-use super::super::util;
-use super::super::ustr::Ustr;
+use util;
+use ustr::Ustr;
 use rustc_serialize::json::Json;
 use std::collections::BTreeMap;
 
@@ -38,7 +38,6 @@ impl FileData {
 		datamap.insert("plus".to_string(), Json::U64(self.plus as u64));
 		datamap.insert("flags".to_string(), Json::U64(self.flags as u64));
 		datamap.insert("hash".to_string(), Json::String(format!("0x{val:>0width$X}", val=self.hash, width=8)));
-		datamap.insert("size".to_string(), Json::U64(self.length as u64));
 
 		match &self.filename_real {
 			&Some(ref val) => {datamap.insert("filenamereal".to_string(), Json::String(val.to_string()));},
@@ -46,6 +45,37 @@ impl FileData {
 		}
 
 		Json::Object(datamap)
+	}
+
+	pub fn from_json(data: &Json, offset: usize, size: usize) -> FileData {
+		let fname = data.find("filename").unwrap().as_string().unwrap();
+		let fname_real = match data.find("filenamereal") {
+			Some(val) => Some(Ustr::from_str(val.as_string().unwrap())),
+			None => None
+		};
+		let ftype = data.find("filetype").unwrap().as_string().unwrap();
+		let flags = data.find("flags").unwrap().as_u64().unwrap() as u32;
+		let plus = data.find("plus").unwrap().as_u64().unwrap() as u32;
+
+		let uuid = u32::from_str_radix(
+			&data.find("uuid").unwrap().as_string().unwrap()[2..], 16
+		).unwrap();
+
+		let hash = u32::from_str_radix(
+			&data.find("hash").unwrap().as_string().unwrap()[2..], 16
+		).unwrap();
+
+		FileData {
+			filename: Ustr::from_str(fname),
+			filetype: Ustr::from_str(ftype),
+			filename_real: fname_real,
+			flags: flags,
+			plus: plus,
+			uuid: uuid,
+			offset: offset,
+			length: size,
+			hash: hash
+		}
 	}
 
 	pub fn parse(data:&[u8]) -> FileData {
@@ -62,6 +92,7 @@ impl FileData {
 
 		let mut offset = 24;
 
+		// ADBG: Archive Debug, holds debugging information, such as hash and filename
 		match util::load_chunk(&data, b"ADBG", offset) {
 			Ok(o) => {
 				offset = o.offset;
@@ -93,5 +124,31 @@ impl FileData {
 			hash: hash,
 			uuid: uuid
 		}
+	}
+
+	pub fn to_vec(&self, offset: u32) -> Vec<u8> {
+		let mut data = Vec::new();
+		data.append(&mut util::to_u8array(&self.uuid));
+		data.extend_from_slice(&self.filetype.data);
+		data.append(&mut util::to_u8array(&(self.offset as u32 + offset)));
+		data.append(&mut util::to_u8array(&(self.length as u32)));
+		data.append(&mut util::to_u8array(&self.plus));
+		data.append(&mut util::to_u8array(&self.flags));
+
+		let mut debug_data = Vec::new();
+		debug_data.append(&mut vec![0;4]);
+		debug_data.extend_from_slice(&self.filename.data);
+		debug_data.append(&mut vec![0]);
+		match self.filename_real {
+			Some(ref val) => {
+				debug_data.extend_from_slice(&val.data);
+				debug_data.append(&mut vec![0]);
+			}, None => {}
+		}
+		debug_data.append(&mut util::to_u8array(&self.hash));
+
+		data.append(&mut util::create_chunk(debug_data, b"ADBG"));
+
+		util::create_chunk(data, b"AHDR")
 	}
 }

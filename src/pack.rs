@@ -1,15 +1,10 @@
 #![allow(dead_code)]
 
 use std::path::*;
-// use std::io;
-use std::fs;
 use std::fs::File;
-// use super::unhip;
 use util;
 use unhip::*;
-// use ustr::Ustr;
 use std::io::prelude::*;
-// use std::collections::BTreeMap;
 use rustc_serialize::json::Json;
 
 pub fn pack(args:&[String]) -> bool {
@@ -31,10 +26,30 @@ pub fn pack(args:&[String]) -> bool {
 
 	let header_data = header::HeaderData::from_json(&header_json);
 
-	// let mut files = Vec::new();
-
 	let mut data = util::create_chunk(vec![], b"HIPA");
 	data.append(&mut header_data.to_vec(&directory::DirectoryData{files:Vec::new(),layers:Vec::new()}));
+
+	let (directory, mut stream_data) = directory::DirectoryData::load(datapath.to_owned());
+
+	let mut stream = Vec::new();
+	stream.append(&mut util::create_chunk(vec![255; 4], b"DHDR"));
+
+	// stream.append(&mut stream_data);
+	let stream_data_len = stream_data.len() as u32;
+	let mut dpak_data = Vec::new();
+	let dpak_len:u32 = 20;
+	dpak_data.append(&mut util::to_u8array(&dpak_len));
+	dpak_data.append(&mut vec![b'3'; dpak_len as usize]);
+	dpak_data.append(&mut stream_data);
+	stream.append(&mut util::create_chunk(dpak_data, b"DPAK"));
+	let mut stream_chunk = util::create_chunk(stream, b"STRM");
+
+	let data_len = data.len() as u32 + stream_chunk.len() as u32 - stream_data_len;
+
+	// println!("Length: {:?}", util::vec_len(&v));
+	data.append(&mut directory.to_vec(directory.get_len() + data_len));
+
+	data.append(&mut stream_chunk);
 
 	match File::create(targetpath) {
 		Ok(mut file_handle) => {
@@ -45,13 +60,5 @@ pub fn pack(args:&[String]) -> bool {
 		},
 		Err(err) => {println!("{}", err); return true;}
 	}
-
-	let paths = fs::read_dir(datapath).unwrap();
-
-	for path in paths {
-		println!("Name: {}", path.unwrap().file_name().to_string_lossy());
-	}
-	// println!("Length: {:?}", util::vec_len(&v));
-
 	true
 }

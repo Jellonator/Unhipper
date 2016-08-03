@@ -1,7 +1,13 @@
-use super::super::util;
+use util;
 use super::file;
 use super::layer;
 use std::collections::BTreeMap;
+use rustc_serialize::json::Json;
+use std::path::*;
+use std::io::prelude::*;
+use std::fs;
+use std::fs::File;
+use std::iter;
 
 pub struct DirectoryData {
 	pub files: Vec<file::FileData>,
@@ -132,5 +138,94 @@ impl DirectoryData {
 			files:  files,
 			layers: layers
 		}
+	}
+
+	pub fn load(datapath: PathBuf) -> (DirectoryData, Vec<u8>) {
+		let paths = fs::read_dir(datapath).unwrap();
+		let mut layers = Vec::new();
+		let mut files = Vec::new();
+		let mut filedata = Vec::new();
+
+		for path in paths {
+			// println!("Name: {}", path.unwrap().file_name().to_string_lossy());
+			let path = path.unwrap().path();
+
+			if path.is_dir() {
+				// Is a folder containg data files
+				let data_path = path.join("data");
+				let meta_path = path.join("meta");
+				for file_result in fs::read_dir(&data_path).unwrap() {
+					let data_file =  file_result.unwrap().path();
+					let meta_file = meta_path.join(format!("{}.json", data_file.file_name().unwrap().to_str().unwrap()));
+					// println!("Data: {}\nMeta: {}\n", data_file.display(), meta_file.display());
+					let file_json = match File::open(meta_file) {
+						Ok(mut file_handle) => {
+							let mut file_contents = String::new();
+							file_handle.read_to_string(&mut file_contents).unwrap();
+							Json::from_str(&file_contents).unwrap()
+						},
+						Err(err) => panic!("{}", err)
+					};
+					let mut fdata:Vec<u8> = match File::open(data_file) {
+						Ok(mut file_handle) => {
+							let mut file_contents = Vec::new();
+							file_handle.read_to_end(&mut file_contents).unwrap();
+							file_contents
+						},
+						Err(err) => panic!("{}", err)
+					};
+					let file = file::FileData::from_json(&file_json, filedata.len(), fdata.len());
+					filedata.append(&mut fdata);
+					let plus_data:String = iter::repeat("3").take(file.plus as usize).collect();
+					filedata.extend_from_slice(plus_data.as_bytes());
+					files.push(file);
+				}
+
+			} else if path.is_file()
+			&& path.extension().unwrap() == "json"
+			&& &path.file_name().unwrap().to_str().unwrap()[0..5] == "layer" {
+				// Is a layer data file
+				let layer_json = match File::open(path) {
+					Ok(mut file_handle) => {
+						let mut file_contents = String::new();
+						file_handle.read_to_string(&mut file_contents).unwrap();
+						Json::from_str(&file_contents).unwrap()
+					},
+					Err(err) => panic!("{}", err)
+				};
+				layers.push(layer::LayerData::from_json(&layer_json));
+			}
+		}
+		let mut dir = DirectoryData {
+			files: files,
+			layers: layers
+		};
+		dir.layers.sort_by(|a, b| a.index.cmp(&b.index));
+
+		(dir,filedata)
+	}
+
+	pub fn get_len(&self) -> u32 {
+		self.to_vec(0).len() as u32
+	}
+
+	pub fn to_vec(&self, offset: u32) -> Vec<u8> {
+		let mut file_data = Vec::new();
+		file_data.append(&mut util::create_chunk(vec![0;4], b"AINF"));
+		for file in &self.files {
+			file_data.append(&mut file.to_vec(offset));
+		}
+
+		let mut layer_data = Vec::new();
+		layer_data.append(&mut util::create_chunk(vec![0;4], b"LINF"));
+		for layer in &self.layers {
+			layer_data.append(&mut layer.to_vec());
+		}
+
+		let mut whole_data:Vec<u8> = Vec::new();
+		whole_data.append(&mut util::create_chunk(file_data, b"ATOC"));
+		whole_data.append(&mut util::create_chunk(layer_data, b"LTOC"));
+
+		util::create_chunk(whole_data, b"DICT")
 	}
 }

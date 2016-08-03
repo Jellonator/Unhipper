@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 pub struct LayerData {
 	pub typenum: u32,
 	pub uuids: Vec<u32>,
-	index: u32
+	pub index: u32
 }
 
 #[derive(Copy, Clone)]
@@ -58,6 +58,43 @@ impl LayerData {
 			uuids: uuids,
 			index: index
 		}
+	}
+
+	pub fn from_json(data: &Json) -> LayerData {
+		let id = data.find("id").unwrap().as_u64().unwrap() as u32;
+		let layertype = data.find("type").unwrap().as_u64().unwrap() as u32;
+		let uuids = data.find("uuids").unwrap()
+			.as_array().unwrap()
+			.iter().map(
+				|val| {
+					// println!("UUID: 0x{:X}, {}", u32::from_str_radix(
+						// &val.as_string().unwrap()[2..], 16).unwrap(),
+						// val.as_string().unwrap());
+					u32::from_str_radix(&val.as_string().unwrap()[2..], 16).unwrap()
+				}
+			).collect::<Vec<u32>>();
+		LayerData {
+			index: id,
+			typenum: layertype,
+			uuids: uuids
+		}
+	}
+
+	pub fn to_vec(&self) -> Vec<u8> {
+		let mut data = Vec::new();
+		data.append(&mut util::to_u8array(&self.typenum));
+		data.append(&mut util::to_u8array(&(self.uuids.len() as u32)));
+		for uuid in &self.uuids {
+			data.append(&mut util::to_u8array(uuid));
+			// println!("UUID: {:?}", util::to_u8array(uuid));
+		}
+
+		let mut debug_data = Vec::new();
+		debug_data.append(&mut vec![255;4]);
+
+		data.append(&mut util::create_chunk(debug_data, b"LDBG"));
+
+		util::create_chunk(data, b"LHDR")
 	}
 }
 
