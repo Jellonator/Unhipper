@@ -4,14 +4,21 @@ use std::fmt;
 use util;
 use std::collections::BTreeMap;
 
+/// Struct representing the datetime(in unix time) that a file was created and last modified
 #[derive(Debug)]
 pub struct Date {
+	/// Time that object was created
 	pub timestamp: u32,
+	/// Time that object was last modified
 	pub modified: u32,
+	/// String representation of timestamp
 	pub date: Ustr,
 }
 
 impl Date {
+	/// Create a new Date object
+	/// Takes some data and a modification date.
+	/// Data should take the format "{timestamp:4}{date_text:28}"
 	pub fn load(data:&[u8], mod_date: u32) -> Date {
 		Date {
 			timestamp: util::from_u8array::<u32>(&data[0..4]),
@@ -20,6 +27,15 @@ impl Date {
 		}
 	}
 
+	/// Create a Json object from a Date object
+	/// Returns a Json object in the following format:
+	/// ```json
+	/// {
+	///     "timestamp": u64,
+	///     "modified": u64,
+	///     "date": string,
+	/// }
+	/// ```
 	pub fn to_json(&self) -> Json {
 		let mut datetimemap = BTreeMap::new();
 		datetimemap.insert("timestamp".to_string(), Json::U64(self.timestamp as u64));
@@ -28,6 +44,8 @@ impl Date {
 		Json::Object(datetimemap)
 	}
 
+	/// Create a Date object from a Json object
+	/// format noted above
 	pub fn from_json(data: &Json) -> Date {
 		Date {
 			modified: data.find("modified").unwrap().as_u64().unwrap() as u32,
@@ -36,6 +54,8 @@ impl Date {
 		}
 	}
 
+	/// Create a Vec<u8> from a Date object
+	/// format noted above
 	pub fn to_vec(&self) -> Vec<u8> {
 		let mut data:Vec<u8> = Vec::new();
 		data.append(&mut util::to_u8array(&self.timestamp));

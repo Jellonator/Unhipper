@@ -7,14 +7,22 @@ use std::path::*;
 use std::io::prelude::*;
 use std::fs;
 use std::fs::File;
-use std::iter;
 
+/// Directory information representing files and layers
 pub struct DirectoryData {
 	pub files: Vec<file::FileData>,
 	pub layers: Vec<layer::LayerData>
 }
 
+//PCNT data: not necessary for header to load these
+// 0..4   is number of files
+// 4..8   is number of layers
+// 8..12  is size of largest file
+// 12..16 is size of largest layer
+// 16..20 is size of largest virtual file
+
 impl DirectoryData {
+	/// Create a Vec<u8> from directory counts
 	pub fn count_to_vec(&self) -> Vec<u8> {
 		let file_count = self.files.len() as u32;
 		let layer_count = self.layers.len() as u32;
@@ -26,11 +34,11 @@ impl DirectoryData {
 
 		for file in &self.files {
 			let new_size = file.length as u32;
-			filemap.insert(file.uuid, new_size);
+			filemap.insert(file.uuid, new_size+file.plus);
 			if new_size > max_file_size {
 				max_file_size = new_size;
 			}
-			if file.flags & file::SOURCE_FILE != 0 {
+			if file.flags & file::READ_TRANSFORM != 0 {
 				if new_size > max_virtual_size {
 					max_virtual_size = new_size;
 				}
@@ -59,7 +67,8 @@ impl DirectoryData {
 		util::create_chunk(data, b"PCNT")
 	}
 
-	#[allow(unused_assignments)]
+
+	/// Create a new DirectoryData object from parsed data
 	pub fn parse(data: &[u8]) -> DirectoryData {
 		let mut offset = 0;
 		let files_start;
@@ -74,8 +83,8 @@ impl DirectoryData {
 		};
 
 		match util::load_chunk(data, b"AINF", offset) {
-			Ok(o) => {
-				offset = o.next;
+			Ok(_) => {
+				// offset = o.next;
 				// content should be null \0\0\0\0
 			},
 			Err(err) => {panic!("{}", err);}
@@ -111,8 +120,8 @@ impl DirectoryData {
 		};
 
 		match util::load_chunk(data, b"LINF", offset) {
-			Ok(o) => {
-				offset = o.next;
+			Ok(_) => {
+				// offset = o.next;
 				// Again, four null bytes
 			},
 			Err(err) => {panic!("{}", err);}
@@ -143,8 +152,8 @@ impl DirectoryData {
 	pub fn load(datapath: PathBuf) -> (DirectoryData, Vec<u8>) {
 		let paths = fs::read_dir(datapath).unwrap();
 		let mut layers = Vec::new();
-		let mut files = Vec::new();
-		let mut filedata = Vec::new();
+		// let mut files = Vec::new();
+		let mut filedata: BTreeMap<u32, (Vec<u8>, file::FileData)> = BTreeMap::new();
 
 		for path in paths {
 			// println!("Name: {}", path.unwrap().file_name().to_string_lossy());
@@ -166,7 +175,7 @@ impl DirectoryData {
 						},
 						Err(err) => panic!("{}", err)
 					};
-					let mut fdata:Vec<u8> = match File::open(data_file) {
+					let fdata:Vec<u8> = match File::open(data_file) {
 						Ok(mut file_handle) => {
 							let mut file_contents = Vec::new();
 							file_handle.read_to_end(&mut file_contents).unwrap();
@@ -174,11 +183,13 @@ impl DirectoryData {
 						},
 						Err(err) => panic!("{}", err)
 					};
-					let file = file::FileData::from_json(&file_json, filedata.len(), fdata.len());
-					filedata.append(&mut fdata);
-					let plus_data:String = iter::repeat("3").take(file.plus as usize).collect();
-					filedata.extend_from_slice(plus_data.as_bytes());
-					files.push(file);
+					let file = file::FileData::from_json(&file_json, 0, fdata.len());
+					// filedata.append(&mut fdata);
+					// filedata.push((fdata, file.uuid))
+					filedata.insert(file.uuid, (fdata, file));
+					// let plus_data:String = iter::repeat("3").take(file.plus as usize).collect();
+					// filedata.extend_from_slice(plus_data.as_bytes());
+					// files.push(file);
 				}
 
 			} else if path.is_file()
@@ -196,13 +207,42 @@ impl DirectoryData {
 				layers.push(layer::LayerData::from_json(&layer_json));
 			}
 		}
+
+		// Layers are ordered by their index!
+		layers.sort_by(|a, b| a.index.cmp(&b.index));
+		let mut files = Vec::new();
+		let mut retdata = Vec::new();
+		// File data is sorted by layer, then by position in layer
+		for layer in &layers {
+			let last_uuid = layer.uuids.last().map(|v|*v).unwrap_or(0);
+			for uuid in &layer.uuids {
+				let (mut data, mut file) = filedata.get(&uuid).unwrap().clone();
+				file.offset = retdata.len();
+				retdata.append(&mut data);
+				let alignment = match *uuid == last_uuid {
+					true => 0,
+					false => 16
+				};
+				if alignment != 0 {
+					let plus = (alignment-(retdata.len()%alignment))%alignment;
+					file.plus = plus as u32;
+					retdata.append(&mut vec![b'3';plus]);
+				} else {
+					file.plus = 0;
+				}
+				files.push(file);
+			}
+			let alignment = 32;
+			let plus = (alignment-(retdata.len()%alignment))%alignment;
+			retdata.append(&mut vec![b'3';plus]);
+		}
 		let mut dir = DirectoryData {
 			files: files,
 			layers: layers
 		};
-		dir.layers.sort_by(|a, b| a.index.cmp(&b.index));
-
-		(dir,filedata)
+		// Files are ordered by their UUID!
+		dir.files.sort_by(|a, b| a.uuid.cmp(&b.uuid));
+		(dir,retdata)
 	}
 
 	pub fn get_len(&self) -> u32 {

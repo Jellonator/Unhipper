@@ -3,56 +3,60 @@ use std::io;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
+use rustc_serialize::json::Json;
 use super::unhip;
 use super::util;
 
+
+const FOLDER_DATA:&'static str = "data";
+const FOLDER_META:&'static str = "meta";
 
 pub fn extract_file(data: &unhip::HipData, file: &unhip::file::FileData, path: &PathBuf) {
 	// Create folder
 	let mut folder = path.to_owned();
 	folder.push(file.filetype.to_string());
-	let data_folder = "data";
-	let meta_folder = "meta";
 
 	match fs::create_dir_all(&folder) {
 		Ok(_) => {},
-		Err (err) => println!("{}", err)
+		Err (err) => panic!("Creation of folder failed, {}: {}", err, path.to_str().unwrap())
 	}
 
-	match fs::create_dir_all(folder.join(&data_folder)) {
+	let folder_data = folder.join(&FOLDER_DATA);
+	match fs::create_dir_all(folder_data.clone()) {
 		Ok(_) => {},
-		Err (err) => println!("{}", err)
+		Err (err) => panic!("Creation of data folder failed, {}: {}", err, folder_data.to_str().unwrap())
 	}
 
-	match fs::create_dir_all(folder.join(&meta_folder)) {
+	let folder_meta = folder.join(&FOLDER_META);
+	match fs::create_dir_all(folder_meta.clone()) {
 		Ok(_) => {},
-		Err (err) => println!("{}", err)
+		Err (err) => panic!("Creation of meta folder failed, {}: {}", err, folder_meta.to_str().unwrap())
 	}
 
 	let file_name = util::get_file_name(&file);
-	let file_path = folder.join(&data_folder).join(format!("{}.{}", file_name, file.filetype));
-	let meta_path = folder.join(&meta_folder).join(format!("{}.{}.json", file_name, file.filetype));
+	let file_path = folder.join(&FOLDER_DATA).join(format!("{}.{}", file_name, file.filetype));
+	let meta_path = folder.join(&FOLDER_META).join(format!("{}.{}.json", file_name, file.filetype));
 
 	// Create data file
-	match File::create(file_path) {
+	match File::create(file_path.clone()) {
 		Ok(ref mut fhandle) => {
 			match fhandle.write_all(file.get_data(data.data.as_slice())) {
 				Ok (_) => {},
-				Err (err) => println!("{}", err)
+				Err (err) => panic!("Writing to data file failed, {}: {}", err, file_path.to_str().unwrap())
 			}
 		},
-		Err (err) => println!("{}", err)
+		Err (err) => panic!("Creation of data file failed, {}: {}", err, file_path.to_str().unwrap())
 	}
 
 	// Create metadata file
-	match File::create(meta_path) {
+	match File::create(meta_path.clone()) {
 		Ok (ref mut fhandle) => {
 			match fhandle.write_all(file.to_json().pretty().to_string().as_bytes()){
 				Ok (_) => {},
-				Err (err) => println!("{}", err)
+				Err (err) => panic!("Writing to meta file failed, {}: {}", err, path.to_str().unwrap())
 			}
 		},
-		Err (err) => println!("{}", err)
+		Err (err) => panic!("Creation of meta file failed, {}: {}", err, path.to_str().unwrap())
 	}
 }
 
@@ -62,23 +66,27 @@ pub fn extract_layer(layer: &unhip::layer::LayerData, path: &PathBuf, idx: u32) 
 		Ok (ref mut fhandle) => {
 			match fhandle.write_all(layer.to_json().pretty().to_string().as_bytes()){
 				Ok (_) => {},
-				Err (err) => println!("{}", err)
+				Err (err) => panic!("{}: {}", err, path.to_str().unwrap())
 			}
 		},
-		Err (err) => println!("{}", err)
+		Err (err) => panic!("{}: {}", err, path.to_str().unwrap())
 	}
 }
 
-pub fn extract_header(header: &unhip::header::HeaderData, path: &PathBuf) {
+pub fn extract_header(header: &unhip::header::HeaderData, path: &PathBuf, files: &Vec<unhip::file::FileData>) {
 	let filepath = path.join("header.json");
 	match File::create(&filepath) {
 		Ok (ref mut fhandle) => {
-			match fhandle.write_all(header.to_json().pretty().to_string().as_bytes()){
+			let mut json = header.to_json();
+			json.as_object_mut().unwrap().insert("order".to_string(), Json::Array(
+				files.iter().map(|val|Json::U64(val.uuid as u64)).collect()
+			));
+			match fhandle.write_all(json.pretty().to_string().as_bytes()){
 				Ok (_) => {},
-				Err (err) => println!("{}", err)
+				Err (err) => panic!("{}: {}", err, path.to_str().unwrap())
 			}
 		},
-		Err (err) => println!("{}", err)
+		Err (err) => panic!("{}: {}", err, path.to_str().unwrap())
 	}
 }
 
@@ -124,7 +132,7 @@ pub fn extract(args:&[String]) -> bool {
 		i += 1;
 	}
 
-	extract_header(&data.header, &path.to_owned());
+	extract_header(&data.header, &path.to_owned(), &data.directory.files);
 
 	// let mut tvec:Vec<u32> = vec![0;data.data.len()];
 	// let mut off:u32 = 0;

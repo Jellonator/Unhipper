@@ -42,7 +42,12 @@ pub fn nonpanic_exit(msg:&str) -> ! {
 }
 
 pub fn get_file_name(f:&unhip::file::FileData) -> String {
-	format!("{}-{:X}", f.filename, f.uuid)
+	let mut file_name = f.filename.clone();
+	file_name.data = file_name.data.iter().map(|val|match *val {
+		b'/' | 0 => b'_',
+		o => o,
+	}).collect();
+	format!("{}-{:X}", file_name, f.uuid)
 }
 
 pub fn to_u8array<VType:Sized>(val:&VType) -> Vec<u8> {

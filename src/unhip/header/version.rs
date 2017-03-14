@@ -2,6 +2,7 @@ use rustc_serialize::json::Json;
 use std::collections::BTreeMap;
 use util;
 
+/// Struct representing versioning data
 #[derive(Debug)]
 pub struct Version {
 	pub version: u32,
@@ -11,6 +12,9 @@ pub struct Version {
 }
 
 impl Version {
+	/// Create a new Version object from some data
+	/// Takes the following format
+	/// "{version:u32}{client_major:u16}{client_minor:u16}{compatible:u32}"
 	pub fn load(value:&[u8]) -> Version {
 		Version {
 			version:      util::from_u8array::<u32>(&value[0 .. 4 ]),
@@ -20,6 +24,15 @@ impl Version {
 		}
 	}
 
+	/// Create a Json object from a Version object
+	/// ```json
+	/// {
+	///     "version": u64,
+	///     "major": u64,
+	///     "minor": u64,
+	///     "compatible": u64,
+	/// }
+	/// ```
 	pub fn to_json(&self) -> Json {
 		let mut versionmap = BTreeMap::new();
 		versionmap.insert("version".to_string(), Json::U64(self.version as u64));
@@ -29,6 +42,7 @@ impl Version {
 		Json::Object(versionmap)
 	}
 
+	/// Create a new Version object from Json object
 	pub fn from_json(data: &Json) -> Version {
 		Version {
 			version:      data.find("version")   .unwrap().as_u64().unwrap() as u32,
@@ -38,6 +52,7 @@ impl Version {
 		}
 	}
 
+	/// Create a new Vec<u8> from Version object
 	pub fn to_vec(&self) -> Vec<u8> {
 		let mut data:Vec<u8> = Vec::new();
 		data.extend_from_slice(&util::to_u8array(&self.version));

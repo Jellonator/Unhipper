@@ -3,30 +3,32 @@ use rustc_serialize::json::Json;
 use std::collections::BTreeMap;
 use util;
 
+/// Structure representing the platform data
 #[derive(Debug)]
 pub struct Platform {
+	/// Short name of the platform (GC)
 	pub platform:      Ustr,
+	/// Long name of the platform (Gamecube)
 	pub platform_name: Ustr,
+	/// Language of the game (EN)
 	pub language:      Ustr,
+	/// Format (NTSC)
 	pub format:        Ustr,
+	/// Name of the game
 	pub game_name:     Ustr,
 }
 
 impl Platform {
+	/// Create a new Platform object given some data
+	/// Takes format "{platform}\x00{platform_name}\x00{format}\x00{language}\x00{game_name}"
 	pub fn load(data:&[u8]) -> Platform {
 		let platform_data = data
 			.split(|val| *val == 0)
 			.filter(|val| !val.is_empty()).collect::<Vec<&[u8]>>();
-
-		// Platform information, can be GC, BX, or PS
 		let platform = platform_data[0];
-		// Language, for some reason this is actually 'Gamecube'
 		let platform_name = platform_data[1];
-		// Format, probably NTSC
 		let format = platform_data[2];
-		// Language
 		let language = platform_data[3];
-		// Actual name of game
 		let game_name = platform_data[4];
 
 		Platform {
@@ -38,6 +40,17 @@ impl Platform {
 		}
 	}
 
+	/// Create a Json object from Platform data
+	/// Json object has the following format:
+	/// ```json
+	/// {
+	///     "platformshort": string,
+	///     "platformlong": string,
+	///     "language": string,
+	///     "format": string,
+	///     "name": string
+	/// }
+	/// ```
 	pub fn to_json(&self) -> Json {
 		let mut datamap = BTreeMap::new();
 		datamap.insert("platformshort".to_string(), Json::String(self.platform.to_string()));
@@ -48,6 +61,7 @@ impl Platform {
 		Json::Object(datamap)
 	}
 
+	/// Create a Platform object from a Json object
 	pub fn from_json(data: &Json) -> Platform {
 		Platform {
 			platform:      Ustr::from_str(data.find("platformshort").unwrap().as_string().unwrap()),
@@ -58,6 +72,7 @@ impl Platform {
 		}
 	}
 
+	/// Create a Vec<u8> from a Platform object
 	pub fn to_vec(&self) -> Vec<u8> {
 		let mut data:Vec<u8> = Vec::new();
 		data.extend_from_slice(&self.platform.data);

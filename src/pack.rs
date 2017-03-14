@@ -27,9 +27,9 @@ pub fn pack(args:&[String]) -> bool {
 	let header_data = header::HeaderData::from_json(&header_json);
 
 	let mut data = util::create_chunk(vec![], b"HIPA");
-	data.append(&mut header_data.to_vec(&directory::DirectoryData{files:Vec::new(),layers:Vec::new()}));
 
 	let (directory, mut stream_data) = directory::DirectoryData::load(datapath.to_owned());
+	data.append(&mut header_data.to_vec(&directory));
 
 	let mut stream = Vec::new();
 	stream.append(&mut util::create_chunk(vec![255; 4], b"DHDR"));
@@ -37,7 +37,9 @@ pub fn pack(args:&[String]) -> bool {
 	// stream.append(&mut stream_data);
 	let stream_data_len = stream_data.len() as u32;
 	let mut dpak_data = Vec::new();
-	let dpak_len:u32 = 20;
+	let alignment = 32;
+	let length_to_dpak = (directory.get_len() as usize + data.len() + 8*4) as u32;
+	let dpak_len:u32 = (alignment-(length_to_dpak%alignment))%alignment;
 	dpak_data.append(&mut util::to_u8array(&dpak_len));
 	dpak_data.append(&mut vec![b'3'; dpak_len as usize]);
 	dpak_data.append(&mut stream_data);

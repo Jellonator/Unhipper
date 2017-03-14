@@ -12,15 +12,30 @@ use self::platform::Platform;
 use self::version::Version;
 use super::directory::DirectoryData;
 
+/// Structure representing all header data
 #[derive(Debug)]
 pub struct HeaderData {
+	/// HIP version
 	pub version: Version,
+	/// Platform data
 	pub platform: Platform,
+	/// Date data
 	pub date: Date,
+	/// Vector of HIP flags
 	pub flags: Vec<u8>
 }
 
 impl HeaderData {
+	/// Create a Json object from header data
+	/// Uses the following format
+	/// ```json
+	/// {
+	///     "version": {version information},
+	///     "time": {date information},
+	///     "platform": {platform information},
+	///     "flags": [list of flags: u64]
+	/// }
+	/// ```
 	pub fn to_json(&self) -> Json {
 		let mut datamap = BTreeMap::new();
 		datamap.insert("version".to_string(), self.version.to_json());
@@ -33,6 +48,7 @@ impl HeaderData {
 		Json::Object(datamap)
 	}
 
+	/// Create a HeaderData object from a Json object
 	pub fn from_json(data: &Json) -> HeaderData {
 		let flags = data.find("flags").unwrap()
 			.as_array().unwrap()
@@ -51,6 +67,7 @@ impl HeaderData {
 		}
 	}
 
+	/// Create a new Vec<u8> from HeaderData and DirectoryData
 	pub fn to_vec(&self, dir: &DirectoryData) -> Vec<u8> {
 		let mut data = Vec::new();
 		data.append(&mut self.version.to_vec());
@@ -62,7 +79,7 @@ impl HeaderData {
 		util::create_chunk(data, b"PACK")
 	}
 
-	#[allow(unused_assignments)]
+	/// Create a new HeaderData object from some data
 	pub fn parse(data: &[u8]) -> Result<HeaderData, ()> {
 		// Parse version
 		let mut offset = 0;
@@ -93,6 +110,7 @@ impl HeaderData {
 		match util::load_chunk(data, b"PCNT", offset) {
 			Ok(o) => {
 				offset = o.next;
+				// do nothing for count data
 			},
 			Err(err) => {
 				println!("{}", err);
@@ -129,7 +147,7 @@ impl HeaderData {
 		// Parse platform ( the real stuff )
 		let platform = match util::load_chunk(data, b"PLAT", offset) {
 			Ok(o) => {
-				offset = o.next;
+				// offset = o.next;
 				Platform::load(&data[o.offset..o.next])
 			},
 			Err(err) => {
@@ -146,13 +164,6 @@ impl HeaderData {
 		})
 	}
 }
-
-//PCNT data: not necessary for header to load these
-// 0..4   is number of files
-// 4..8   is number of layers
-// 8..12  is size of largest file
-// 12..16 is size of largest layer
-// 16..20 is size of largest virtual file
 
 impl fmt::Display for HeaderData {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

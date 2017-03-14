@@ -13,23 +13,39 @@ pub const SOURCE_VIRTUAL:u32 = 2;
 pub const READ_TRANSFORM:u32 = 4;
 pub const WRITE_TRANSFORM:u32 = 8;
 
+/// Structure representing a single file
+#[derive(Clone)]
 pub struct FileData {
+	/// Name of file after packing
 	pub filename: Ustr,
+	/// Name of file presumably before being packed in the first place
 	pub filename_real: Option<Ustr>,
+	/// Type of the file
 	pub filetype: Ustr,
+	/// Offset of the data in this file
 	pub offset: usize,
+	/// Length of the data in this file
 	pub length: usize,
+	/// Data hash
 	pub hash: u32,
+	/// Unique ID of the data
 	pub uuid: u32,
+	/// Data flags
 	pub flags: u32,
-	pub plus: u32
+	/// Extra padding after file
+	pub plus: u32,
+	/// Dunno, some kind of debug flag?
+	pub debug_flags: u32,
 }
 
 impl FileData {
+	/// Get this file's data
+	/// Uses the FileData's offset and length
 	pub fn get_data<'a>(&self, data:&'a[u8]) -> &'a[u8] {
 		&data[self.offset..self.offset+self.length]
 	}
 
+	/// Create a Json object from this FileData
 	pub fn to_json(&self) -> Json {
 		let mut datamap = BTreeMap::new();
 		datamap.insert("filename".to_string(), Json::String(self.filename.to_string()));
@@ -38,6 +54,7 @@ impl FileData {
 		datamap.insert("plus".to_string(), Json::U64(self.plus as u64));
 		datamap.insert("flags".to_string(), Json::U64(self.flags as u64));
 		datamap.insert("hash".to_string(), Json::String(format!("0x{val:>0width$X}", val=self.hash, width=8)));
+		datamap.insert("debug_flags".to_string(), Json::U64(self.debug_flags as u64));
 
 		match &self.filename_real {
 			&Some(ref val) => {datamap.insert("filenamereal".to_string(), Json::String(val.to_string()));},
@@ -56,6 +73,7 @@ impl FileData {
 		let ftype = data.find("filetype").unwrap().as_string().unwrap();
 		let flags = data.find("flags").unwrap().as_u64().unwrap() as u32;
 		let plus = data.find("plus").unwrap().as_u64().unwrap() as u32;
+		let debug_flags = data.find("debug_flags").unwrap().as_u64().unwrap() as u32;
 
 		let uuid = u32::from_str_radix(
 			&data.find("uuid").unwrap().as_string().unwrap()[2..], 16
@@ -74,7 +92,8 @@ impl FileData {
 			uuid: uuid,
 			offset: offset,
 			length: size,
-			hash: hash
+			hash: hash,
+			debug_flags: debug_flags
 		}
 	}
 
@@ -101,6 +120,7 @@ impl FileData {
 		};
 
 		// Next four bytes are null
+		let debug_flags = util::from_u8array::<u32>(&data[offset..offset+4]);
 		let filedatas = &data[offset+4..data.len()-4]
 		.split(|val| *val == 0)
 		.filter(|val| !val.is_empty())
@@ -122,7 +142,8 @@ impl FileData {
 			plus: plus,
 			flags: flags,
 			hash: hash,
-			uuid: uuid
+			uuid: uuid,
+			debug_flags: debug_flags,
 		}
 	}
 
@@ -136,15 +157,22 @@ impl FileData {
 		data.append(&mut util::to_u8array(&self.flags));
 
 		let mut debug_data = Vec::new();
-		debug_data.append(&mut vec![0;4]);
+		// debug_data.append(&mut vec![0;4]);
+		debug_data.append(&mut util::to_u8array(&self.debug_flags));
 		debug_data.extend_from_slice(&self.filename.data);
-		debug_data.append(&mut vec![0]);
+		// debug_data.append(&mut vec![0;1]);
+		let total_len = debug_data.len();
+		debug_data.append(&mut vec![0;2-(total_len%2)]);
 		match self.filename_real {
 			Some(ref val) => {
 				debug_data.extend_from_slice(&val.data);
-				debug_data.append(&mut vec![0]);
+				// let total_len = val.data.len();
+				// debug_data.append(&mut vec![0;4-(total_len%4)]);
 			}, None => {}
 		}
+		// debug_data.append(&mut vec![0;1]);
+		let total_len = debug_data.len();
+		debug_data.append(&mut vec![0;2-(total_len%2)]);
 		debug_data.append(&mut util::to_u8array(&self.hash));
 
 		data.append(&mut util::create_chunk(debug_data, b"ADBG"));
