@@ -170,9 +170,7 @@ impl fmt::Display for HeaderData {
 		write!(f,
 "HIP Version {0:?} created on {2}
 Flags: {1:?}
-Game is {3:?} for {4:?} {5:?} {6:?} {7:?}
 ",
-		self.version.version, self.flags, self.date, self.platform.game_name,
-		self.platform.platform, self.platform.format, self.platform.language, self.platform.platform_name)
+		self.version.version, self.flags, self.date)
 	}
 }
