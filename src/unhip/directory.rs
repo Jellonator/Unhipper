@@ -67,7 +67,6 @@ impl DirectoryData {
 		util::create_chunk(data, b"PCNT")
 	}
 
-
 	/// Create a new DirectoryData object from parsed data
 	pub fn parse(data: &[u8]) -> DirectoryData {
 		let mut offset = 0;

@@ -179,4 +179,12 @@ impl FileData {
 
 		util::create_chunk(data, b"AHDR")
 	}
+
+	pub fn get_output_folder(&self) -> String {
+		return self.filetype.to_string().trim().into()
+	}
+
+	pub fn get_output_extension(&self) -> String {
+		return self.filetype.to_string().trim().to_lowercase()
+	}
 }
