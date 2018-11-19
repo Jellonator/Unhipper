@@ -4,8 +4,8 @@ A tool for managing Heavy Iron's HIP/HOP archive file format.
 Currently supports Spongebob Squarepants: Battle for Bikini Bottom
 
 ## Compiling
-To compile, you need to install the latest version of 
-[The Rust Programming Language](https://www.rust-lang.org/en-US/), 
+To compile, you need to install the latest version of
+[The Rust Programming Language](https://www.rust-lang.org/en-US/),
 and you need to be familiar with command line utilities.
 
 Once you have installed Rust, you need to download this repository and
@@ -16,7 +16,7 @@ cargo build --release
 ```
 
 The above command will compile Unhipper; this may take a moment. Once this
-has finished, the resulting executable will can be found in the folder 
+has finished, the resulting executable can be found in the folder
 'target/release/'.
 
 ## Usage
